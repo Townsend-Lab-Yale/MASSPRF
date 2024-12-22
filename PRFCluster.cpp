@@ -256,9 +256,15 @@ int PRFCluster::Run(int argc, const char*argv[]) {
 		//Display on screen
 		cout<<endl<<"Mission accomplished. (Time elapsed: ";
 		time_t t = time(NULL)-time_start;
-		int h=t/3600, m=(t%3600)/60, s=t-(t/60)*60;
-		if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
-		else   cout<<m<<":"<<s<<")"<<endl;
+		int h = t / 3600, m = (t % 3600) / 60, s = t % 60;
+if (h) 
+    cout << setw(2) << setfill('0') << h << ":" 
+         << setw(2) << setfill('0') << m << ":" 
+         << setw(2) << setfill('0') << s << endl;
+else 
+    cout << setw(2) << setfill('0') << m << ":" 
+         << setw(2) << setfill('0') << s << endl;
+
 	}
 	catch (const char* e) {
 		cout<<e<<endl;
