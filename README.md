@@ -1,131 +1,74 @@
-# MASS-PRF: Model Averaged Site Selection via Poisson Random Field
+# massprf-protein-coloring
+maps the output of massprf into a file that can be used in Chimera to color proteins
+execute 
 
-## Overview
-MASS-PRF is a computational tool designed to detect regional variation in selection intensity within protein-coding genes using DNA sequence polymorphism and divergence data. This repository includes the program, preprocessing scripts, and a pipeline for genome-wide analysis.
+    source("batchMASSPRF_To_Chimera.R") 
 
----
+from R, which creates the batchMASSPRF_Chimera command in your local enviornment.
 
-## Installation
+## dependencies
+  require("bio3d")
+  
+  require("Biostrings")
+  
+  require("muscle")
+  
+The coloring happens in Chimera, so you'll need that program too.
 
-### Prerequisites
-The pipeline assumes a Unix environment with bash shell. Advanced users can adjust instructions for other environments.
 
----
+## example calls
+    #do one gene (S gene)
+    batchMASSPRF_Chimera(designFile = "example_inputs/S-design.tsv",hasHeader = T,onlySig = F,bins=10,midColor = c(240,245,240),logT = F)
 
-### Steps
+    #do multiple genes jointly
+    batchMASSPRF_Chimera(designFile = "example_inputs/batch-design.tsv",hasHeader = T,onlySig = F,bins=15,midColor = c(240,245,240),logT = 2)
 
-#### 0) Install MASS-PRF and MASS-PRF Preprocess
-You can clone this repository and read within for build instructions:  
-[https://github.com/zimingz/MASSPRF_10July2016](https://github.com/zimingz/MASSPRF_10July2016)
 
-It is important to note that you may need to build both `massprf` and `massprf_preprocess` independently:
-- The final executable for `massprf` will be in `./bin`.
-- The `massprf_preprocess` executable will be in `./MASSPRF_preprocessing_08July2016`.
+## Inputs
+designFile: a tsv file with each of the following columns (column names ignored)
 
----
+    pdbFile: The protein structure you are trying to map onto, in pdb format. REQUIRED INPUT
 
-#### 0.1) Build Symlinks to MASS-PRF and MASS-PRF Preprocess
-Get the absolute path of your compiled `massprf` & `MASSPRF_preprocess`. These will be something like:
 
-```plaintext
-~/PATH/TO/MASSPRF/MASSPRF_10July2016/bin/massprf
-~/PATH/TO/MASSPRF/MASSPRF_10July2016/MASSPRF_preprocessing_08July2016/MASSPRF_preprocess
-```
-Createa custom symlinks folder in your home directory (if you haven't already):
-```
-mkdir ~/symbolics
-cd ~/symbolics
-```
-Create links to massprf and massprf_preprocess in that directory:
-```
-ln -s ~/PATH/TO/MASSPRF/MASSPRF_10July2016/bin/massprf massprf
-ln -s ~/PATH/TO/MASSPRF/MASSPRF_10July2016/MASSPRF_preprocessing_08July2016/MASSPRF_preprocess massprf_preprocess
-```
-Add the symbolic link folder to your $PATH in ~/.bash_profile:
-```
-vim ~/.bash_profile
-```
-Scroll to the line that says something like:
-```
-PATH=$PATH:OTHERPATHS
-```
-Append a colon and add the path to your symbolic links, such that it looks like this:
-```
-PATH=$PATH:OTHERPATHS:$HOME/symbolics
-Save and reload your profile:
-source ~/.bash_profile
-```
-Save the file and reload your profile:
-```
-source ~/.bash_profile
-```
-1) Install Conda Package Manager
-   ```
-   pip install conda
-   ```
-If you are working on a cluster, you may need to install Miniconda directly from the package due to file permission issues or if pip is unavailable.
-In this case, download the file from https://conda.io/miniconda.html, run it on the cluster, and make sure the installation directory is added to your path via ~/.bashrc.
-After installing Miniconda, source the path and verify Python version:
-```
-source ~/.bashrc
-python
-```
-2) Update Conda
-Make sure your Conda is up to date by running:
-```
-conda update conda
-```
-3) Update Python
-Update Python to version 3.5, or optionally create a Python 3.5 virtual environment:
-```
-conda update python
-```
-4) Install Package Dependencies
-Add the Bioconda channel to Conda:
-```
-conda config --add channels bioconda
-```
-Install required packages:
-```
-conda install pandas
-conda install biopython
-conda install gffutils
-conda install pyvcf
-```
-5) Clone This Repository
-```
-git clone https://github.com/Townsend-Lab-Yale/massprf-pipeline.git
-```
-Usage
-To run the example pipeline, see jobs.list in the massprf-pipeline folder. Example commands include:
+    MASSPRF_Nuc_Fasta: the nucleotide sequence representing your MASSPRF input, in open reading frame and in fasta format. REQUIRED INPUT
 
-Prepare Input Files
 
-Ensure the input files are in the required format (e.g., FASTA or consensus FASTA). See the examples/ folder for sample files.
-Run the Program
+    MASSPRF_Table: The output table from MASSPRF containing the gamma values and CI. REQUIRED INPUT
+    
 
-Example command:
-```
-./massprf -p examples/input_pol.fasta -d examples/input_div.fasta -o 1 -s 1 -exact 0
-```
+    scaling: the scale factor from MASSPRF--look in the output of MASSPRF to find this. 1 or a multiple of 3. REQUIRED INPUT
 
-Files and Folders
-massprf-pipeline/: Scripts and documentation for genome-wide analysis.
-examples/: Sample input and output files.
-Source Code: All necessary .cpp and .h files for MASS-PRF.
 
-Citation
-If you use MASS-PRF in your research, please cite:
+    outfile: where the resultant commands for Chimera to color will be stored. Defaults chimeraColoring.txt
 
-Z.-M. Zhao, M. C. Campbell, N. Li, Z. Zhang, and J. P. Townsend. Detection of regional variation in selection intensity within protein-coding genes using DNA sequence polymorphism and divergence. Molecular Biology and Evolution, 2017. 34 (11), 3006-3022. 
-https://doi.org/10.1093/molbev/msx213
 
-Contact
-For questions or support, contact 
-Jeffrey Townsend
-Elihu Professor of Biostatistics and Ecology & Evolutionary Biology
-Email:Jeffrey.Townsend@Yale.edu
-or 
-Yide Jin 
-Email: yide.jin@yale.edu/jinyide0202@gmail.com
- 
+    
+    
+
+doOnly: a vector of rows from the design file to use. Default is use all. (ex. c(1,3,4))
+    
+
+hasHeader: logical. Does your design file contain a header? Defaults FALSE
+    
+
+sigSetting: what are you using to determine significance? only affects scale factor 1; otherwise sitewise significance is used. Defaults average
+
+
+onlySig: T or F do you want to only color significant sites. Defaults T
+
+
+rgb1 and rgb2: vectors of size 3, corresponding to a rgb value for coloring the selection intensity. Defaults red and blue
+
+    
+midColor: vector of size 3, optional, corresponding to an rgb value. A midpoint color for a gradient between rgb1 and 2. Defaults NULL (i.e. 2 color gradient)
+
+
+bins: how many equally spaced apart color categories you want to use for your data. Defaults 10
+
+
+ehColor: what do you want to color 'eh' residues (missing data, nonsignificant) as a vector size three of rgb. Defaults grey
+
+
+## To Use
+run "read \<outfile\>;" on the Chimera command line 
+

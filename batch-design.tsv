@@ -1,0 +1,3 @@
+pdb	MASSPRF_Nuc_Fasta	MASSPRF_Table	scaling	out
+S_23.pdb	s_gene.fasta	S1_MASSPRF.tsv	6	sars-cov-2-S.cscript
+SARS-CoV-2_ORF7a_Gene.pdb	orf7a_gene.fasta	orf7a_MASS_PRF.tsv	1	sars-cov-2-orf7a.cscript
