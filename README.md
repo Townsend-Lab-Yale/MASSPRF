@@ -113,7 +113,9 @@ Example command:
 ***Files and Folders***<br>
 massprf-pipeline/: Scripts and documentation for genome-wide analysis.<br>
 examples/: Sample input and output files.<br>
-Source Code: All necessary .cpp and .h files for MASS-PRF.
+Source Code: All necessary .cpp and .h files for MASS-PRF.<br>
+2D_Mapping_Scripts/: Scripts for generating 2D mapping visualizations.<br>
+3D_Mapping_Scripts/: Scripts for generating 3D mapping visualizations.
 
 ***Citation***<br>
 If you use MASS-PRF in your research, please cite:
