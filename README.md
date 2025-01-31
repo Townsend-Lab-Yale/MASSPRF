@@ -121,11 +121,11 @@ Z.-M. Zhao, M. C. Campbell, N. Li, Z. Zhang, and J. P. Townsend. Detection of re
 https://doi.org/10.1093/molbev/msx213
 
 Contact
-For questions or support, contact 
-Jeffrey Townsend
-Elihu Professor of Biostatistics and Ecology & Evolutionary Biology
+For questions or support, contact: 
+Jeffrey Townsend<br>
+Elihu Professor of Biostatistics and Ecology & Evolutionary Biology<br>
 Email:Jeffrey.Townsend@Yale.edu
 or 
-Yide Jin 
+Yide Jin <br>
 Email: yide.jin@yale.edu/jinyide0202@gmail.com
  
