@@ -1,4 +1,5 @@
-# MASS-PRF: Model Averaged Site Selection via Poisson Random Field
+# MASS-PRF: Model Averaged Site Selection via Poisson Random Field 
+Updated in 2025/1/30
 
 ## Overview
 MASS-PRF is a computational tool designed to detect regional variation in selection intensity within protein-coding genes using DNA sequence polymorphism and divergence data. This repository includes the program, preprocessing scripts, and a pipeline for genome-wide analysis.
@@ -59,7 +60,7 @@ Save the file and reload your profile:
 ```
 source ~/.bash_profile
 ```
-1) Install Conda Package Manager
+#### 1) Install Conda Package Manager
    ```
    pip install conda
    ```
@@ -70,17 +71,17 @@ After installing Miniconda, source the path and verify Python version:
 source ~/.bashrc
 python
 ```
-2) Update Conda
+#### 2) Update Conda
 Make sure your Conda is up to date by running:
 ```
 conda update conda
 ```
-3) Update Python
+#### 3) Update Python
 Update Python to version 3.5, or optionally create a Python 3.5 virtual environment:
 ```
 conda update python
 ```
-4) Install Package Dependencies
+#### 4) Install Package Dependencies
 Add the Bioconda channel to Conda:
 ```
 conda config --add channels bioconda
@@ -92,7 +93,7 @@ conda install biopython
 conda install gffutils
 conda install pyvcf
 ```
-5) Clone This Repository
+#### 5) Clone This Repository
 ```
 git clone https://github.com/Townsend-Lab-Yale/massprf-pipeline.git
 ```
@@ -109,19 +110,19 @@ Example command:
 ./massprf -p examples/input_pol.fasta -d examples/input_div.fasta -o 1 -s 1 -exact 0
 ```
 
-Files and Folders
-massprf-pipeline/: Scripts and documentation for genome-wide analysis.
-examples/: Sample input and output files.
+***Files and Folders***<br>
+massprf-pipeline/: Scripts and documentation for genome-wide analysis.<br>
+examples/: Sample input and output files.<br>
 Source Code: All necessary .cpp and .h files for MASS-PRF.
 
-Citation
+***Citation***<br>
 If you use MASS-PRF in your research, please cite:
 
-Z.-M. Zhao, M. C. Campbell, N. Li, Z. Zhang, and J. P. Townsend. Detection of regional variation in selection intensity within protein-coding genes using DNA sequence polymorphism and divergence. Molecular Biology and Evolution, 2017. 34 (11), 3006-3022. 
+Z.-M. Zhao, M. C. Campbell, N. Li, Z. Zhang, and J. P. Townsend. Detection of regional variation in selection intensity within protein-coding genes using DNA sequence polymorphism and divergence. Molecular Biology and Evolution, 2017. 34 (11), 3006-3022.<br> 
 https://doi.org/10.1093/molbev/msx213
 
-Contact
-For questions or support, contact: 
+***Contact***<br>
+For questions or support, contact:<br> 
 Jeffrey Townsend<br>
 Elihu Professor of Biostatistics and Ecology & Evolutionary Biology<br>
 Email:Jeffrey.Townsend@Yale.edu
