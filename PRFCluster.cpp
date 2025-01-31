@@ -3422,61 +3422,97 @@ bool PRFCluster::parseParameter(int argc, const char* argv[]) {
  * Input Parameter:
  * Output:
  ***************************************************/
-//Information and help when type ./cMAC-PRF -h
+//Information and help when type ./cMAC-PRF -h update in 2025/1/30 by Yide Jin
 void PRFCluster::showHelpInfo() {
-	cout<<"***********************************************************************"<<endl;
-	cout<<NAME<<", Version: "<<VERSION<<" ["<<LASTUPDATE<<"]"<<endl;
-	cout<<"Function: "<<FUNCTION<<endl;
-	cout<<"Usage: "<<NAME<<" [OPTIONS]"<<endl;
-	cout<<"***********************************************************************"<<endl<<endl;
+    cout << "***********************************************************************" << endl;
+    cout << NAME << ", Version: " << VERSION << " [" << LASTUPDATE << "]" << endl;
+    cout << "Function: " << FUNCTION << endl;
+    cout << "Usage: " << NAME << " [OPTIONS]" << endl;
+    cout << "***********************************************************************" << endl << endl;
 
-	cout<<"OPTIONS:"<<endl;
+    cout << "OPTIONS:" << endl;
 
-	cout<<"  -p\tInput file name for polymorphic sequences [string, required]"<<endl;
-	cout<<"  -o\tChoice of output format [integer, optional], {0: amino acid level output || 1: nucleotide level output, default=0}"<<endl;
-	cout<<"  -ic\tChoice of input format for divergence and polymorphism sequences [integer, optional], {0: DNA sequences || 1: consensus sequences, default=0}"<<endl;
-	cout<<"  -d\tInput file name for divergent sequences [string, required]"<<endl;
-	cout<<"  -sn\tInput the number of polymorphism sequences [integer, required when -ic=1]"<<endl;
-	cout<<"  -mn\tInput the number of models to be used in stochastic algorithm [integer, optional when -exact=0]"<<endl;
+    cout << "  -p\tInput file name for polymorphic sequences [string, required]" << endl;
+    cout << "  -d\tInput file name for divergent sequences [string, required]" << endl;
+    cout << "  -ic\tChoice of input format for divergence and polymorphism sequences [integer, optional]," << endl;
+    cout << "      \t{0: DNA sequences || 1: consensus sequences, default=0}" << endl;
+    cout << "  -sn\tNumber of polymorphism sequences [integer, required when -ic=1]" << endl;
+    cout << "  -o\tChoice of output format [integer, optional]," << endl;
+    cout << "      \t{0: amino acid level output || 1: nucleotide level output, default=0}" << endl;
+    cout << "  -c\tCriterion used for clustering [integer, optional]," << endl;
+    cout << "      \t{0: BIC || 1: AIC || 2: AICc || 3: LRT}, default=0" << endl;
+    cout << "      \tRecommendation: Use BIC for larger datasets and AIC/AICc for smaller sample sizes." << endl;
+    cout << "  -g\tGenetic code used for sequences [integer, optional]," << endl;
+    cout << "      \t{1: Standard genetic code}, default=1" << endl;
+    cout << "      \tMore information about genetic codes can be found at" << endl;
+    cout << "      \thttp://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi" << endl;
+    cout << "  -m\tModel selection and model averaging [integer, optional]," << endl;
+    cout << "      \t{0: use both model selection and model averaging ||" << endl;
+    cout << "      \t 1: use only model selection}, default=0" << endl;
+    cout << "      \tRecommendation: Use the default value (`0`) for most applications," << endl;
+    cout << "      \tas model averaging allows for a more nuanced estimate of regional selection." << endl;
+    cout << "  -ci_m\tCalculate 95% confidence intervals for results of model averaging [integer, optional]," << endl;
+    cout << "        \t{0: NOT calculate || 1: calculate}, default=0" << endl;
+    cout << "  -s\tShow clustering results of synonymous sites [integer, optional]," << endl;
+    cout << "      \t{0: without clustering of synonymous sites ||" << endl;
+    cout << "      \t 1: with clustering of synonymous and replacement sites}, default=1" << endl;
+    cout << "      \tRecommendation: Use `-s 1` for improved accuracy, as this setting accounts for" << endl;
+    cout << "      \tregional differences in mutation rate and coalescence time." << endl;
+    cout << "  -ssd\tUse site-specific divergence time from silent site clustering (cannot be used with -t flag)" << endl;
+    cout << "      \tRecommendation: Enable site-specific divergence time calculation with `-ssd`" << endl;
+    cout << "      \twhen synonymous site clustering is used (`-s 1`)." << endl;
+    cout << "  -r\tEstimate selection coefficient for each site [integer, optional]," << endl;
+    cout << "      \t{0: NOT estimate || 1: estimate}, default=1" << endl;
+    cout << "  -ci_r\tCalculate 95% confidence intervals for selection coefficient [integer, optional]," << endl;
+    cout << "        \t{0: NOT calculate || 1: calculate}, default=1" << endl;
+    cout << "  -exact\tAlgorithm for calculating 95% confidence intervals for selection coefficient [integer, optional]," << endl;
+    cout << "        \t{0: use stochastic algorithm || 1: use exact algorithm}, default=0" << endl;
+    cout << "      \tRecommendation: Use the stochastic algorithm (`0`) for longer sequences to reduce computation time." << endl;
+    cout << "  -mn\tNumber of models to be used in stochastic algorithm [integer, optional when -exact=0]," << endl;
+    cout << "      \tdefault=10000" << endl;
+    cout << "      \tRecommendation: Increase to 30000 for more reliable results, especially for larger datasets." << endl;
+    cout << "  -t\tUser-specified species divergence time [float, in million years (MY)]" << endl;
+    cout << "      \t[Default: estimate site-specific divergence time using the -ssd option]" << endl;
+    cout << "      \tNote: Cannot be used simultaneously with the `-ssd` flag." << endl;
+    cout << "  -n\tNucleotide treatment when not A, T, G, or C [integer, optional]," << endl;
+    cout << "      \t{0: treat as gap || 1: replace with most frequently used nucleotide in other sequences}," << endl;
+    cout << "      \tdefault=1" << endl;
+    cout << "      \tRecommendation: Use `1` to maintain sequence integrity by replacing ambiguous nucleotides." << endl;
+    cout << "  -NI\tEstimate the Neutrality Index for each site [integer, optional]," << endl;
+    cout << "      \t{0: NOT estimate || 1: estimate}, default=0" << endl;
+    cout << "  -v\tVerbose output [integer, optional]," << endl;
+    cout << "      \t{0: not verbose, concise output || 1: verbose output}, default=1" << endl;
+    cout << "      \tRecommendation: Use `1` for detailed output to aid in debugging and interpretation." << endl;
+    cout << "  -a\tMinimum length to start scaling sequences [integer, optional]" << endl;
+    cout << "      \tSpecify the minimum gene length (in base pairs) for scaling down sequences using the `-SCL` flag." << endl;
+    cout << "  -rMAp\tOutput gamma calculated using model-averaged pr and dr [integer, optional]," << endl;
+    cout << "        \t{0: do not use model-averaged pr and dr || 1: use model-averaged pr and dr}, default=0" << endl;
+    cout << "  -SCL\tCompress sequences by units of 3, 6, or 9 nucleotides [integer, optional]," << endl;
+    cout << "        \tInput the divisor integer to shorten computation time," << endl;
+    cout << "        \t{3, 6, 9}, advisable for genes longer than 1,000 bp" << endl;
+    cout << "      \tRecommendation: Use `-SCL 3` to maintain codon alignment while reducing computation time." << endl;
+    cout << "  -h\tShow help information" << endl;
+    cout << endl;
 
-	cout<<"  -c\tCriterion used for clustering [integer, optional], {0:BIC || 1:AIC || 2:AICc}, default = 0"<<endl;
-	cout<<"  -g\tGenetic code used for sequences [integer, optional], {1:standard}, default = 1"<<endl;
-	cout<<"    \tMore information about the genetic codes can be found at http://www.ncbi.nlm.nih.gov/Taxonomy/Utils/wprintgc.cgi"<<endl;
-	cout<<"  -m\tModel selection and model averaging  [integer, optional], {0: use both model selection and model averaging || 1: use only model selection}, default = 0"<<endl;
-	cout<<"  -ci_m\tCalculate 95% confidence intervals for results of model averaging [integer, optional], {0: NOT calculate 95% confidence intervals || 1: calculate 95% confidence intervals}, default = 0"<<endl;
-	cout<<"  -s\tShow clustering results of synonymous sites from Polymorphism and Divergent sequences [integer, optional], {0: without clustering of synonymous sites || 1: with clustering of synonymous and replacement sites}, default = 1"<<endl;
-	cout<<"  -ssd\tDefault option: use site-specific divergence time from silent site clustering (cannot be used in conjunction with -t flag)"<<endl;
-	cout<<"  -r\tEstimate selection coefficient for each site [integer, optional], {0: NOT estimate selection coefficient || 1: estimate selection coefficient}, default=1"<<endl;
-	cout<<"  -ci_r\tCalculate 95% confidence intervals for selection coefficient [integer, optional], {0: NOT calculate 95% confidence intervals || 1: calculate 95% confidence intervals}, default = 1"<<endl;
-	cout<<"  -exact\tAlgorithm for calculating 95% confidence intervals for selection coefficient [integer, optional], {0: use stochastic algorithm || 1: use exact algorithm}, default = 0"<<endl;
-	cout<<"  -t\tUser specified species divergence time [Default: estimate site-specific divergence time using the option -ssd (cannot be used in conjunction with -ssd flag)]."<<endl;
-	cout<<"  -n\tNucleotide is replaced or seen as gap when it is not A, T, G or C in the sequences [integer, optional], {0: see it as gap || 1: replace this nucleotide with the most frequently used nucleotide in other sequences}, default = 1"<<endl;
-	cout<<"  -NI\tEstimate the Neutrality Index for each site [integer, optional], {0: NOT estimate Neutrality Index || 1: estimate Neutrality Index}, default=0"<<endl;
-	cout<<"  -v\tVerbose output or not [integer, optional], {0: not verbose, concise output || 1: verbose output}, default=1"<<endl;
-	cout<<"  -a\tMinimum length to start scaling sequences"<<endl;
+    cout << "COPYRIGHT & LICENSE:" << endl;
+    cout << NAME << " source codes are under a Creative Commons CC BY-NC license." << endl;
+    cout << "The codes can be attributed but not used for commercial purposes." << endl;
+    cout << endl;
 
-	cout<<"  -rMAp\tOutput gamma calculated using model averaged pr and dr [integer, optional], {0: not used model averaged pr and dr || 1: yes, default=0}"<<endl;
+    cout << "REFERENCE:" << endl;
+    cout << REFERENCE << endl;
+    cout << endl;
 
-	cout<<"  -h\tShow help information"<<endl;
-	cout<<endl;
+    cout << "SEE ALSO:" << endl;
+    cout << "For more information, please visit <https://medicine.yale.edu/lab/townsend/sand/>." << endl;
+    cout << endl;
 
-	cout<<"COPYRIGHT & LICENSE:"<<endl;
-	cout<<NAME<<"Source codes are under a Creative Commons CC BY-NC license."<<endl;
-	cout<<"The codes can be attributed but not for commercial purpose."<<endl;
-	cout<<endl;
-
-	cout<<"REFERENCE:"<<endl;
-	cout<<REFERENCE<<endl;
-	cout<<endl;
-
-	cout<<"SEE ALSO:"<<endl;
-	cout<<"For more information, please see <http://www.yale.edu/townsend/software.html>."<<endl;
-	cout<<endl;
-
-	cout<<"CONTACT:"<<endl;
-	cout<<"Please send suggestions or bugs to Ning Li (lin.cmb@gmail.com), Zi-Ming Zhao (ziming.gt@gmail.com) and Jeffrey Townsend (Jeffrey.Townsend@Yale.edu)."<<endl;
-	cout<<endl;
+    cout << "CONTACT:" << endl;
+    cout << "Please send suggestions or report bugs to Yide JIn (jinyide0202@gmail.com)," << endl;
+    cout << "Zi-Ming Zhao (ziming.gt@gmail.com),Michael C. Campbell(mc44680@usc.edu)and Jeffrey Townsend (Jeffrey.Townsend@Yale.edu)." << endl;
+    cout << endl;
 }
+
 /***************************************************
  * Function:use model averaged pr and dr to estimate gamma
  * Input Parameter:
