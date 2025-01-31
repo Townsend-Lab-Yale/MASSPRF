@@ -125,7 +125,7 @@ For questions or support, contact:
 Jeffrey Townsend<br>
 Elihu Professor of Biostatistics and Ecology & Evolutionary Biology<br>
 Email:Jeffrey.Townsend@Yale.edu
-or 
+or <br>
 Yide Jin <br>
 Email: yide.jin@yale.edu/jinyide0202@gmail.com
  
