@@ -584,8 +584,8 @@ int Base::readFasta(string seqfile, vector<string> &seqname, vector<string> &seq
 				//cout<<"Debug-Found seq: \n"<<temp<<endl;
 				getline(is, temp, '\n'); //Get the sequence 
 				if (is.eof()==true && temp=="") {
-				cout<<"Error in readFasta. Check fasta file format."<<endl;
-				cout<<"Standard fasta format should be used, '>' should be put before the taxa name and line break should be used for each sequence including the last sequence."<<endl;
+				cout<<"Notice: End-of-file reached. Please ensure that your FASTA file conforms to the standard format."<<endl;
+				cout<<"Standard FASTA format requires each entry to begin with a '>' followed by the taxa name and sequence lines. If your file includes an extra empty line at the end, this message can be safely ignored."<<endl;
 				break;
 				}
 			} 
@@ -642,8 +642,8 @@ int Base::readFastaConsensus(string seqfile, vector<string> &seqname, vector<str
 				//cout<<"The line "<<c2<<": "<<temp<<endl;
 				if (is.eof()==true) break;
 				if (is.eof()==true && temp=="") {
-				cout<<"Error in readFastaConsensus. Check fasta file format."<<endl;
-				cout<<"Standard fasta format should be used, '>' should be put before the taxa name and line break should be used for each sequence including the last sequence."<<endl;
+				cout<<"Notice: End-of-file reached. Please ensure that your FASTA file conforms to the standard format."<<endl;
+				cout<<"Standard FASTA format requires each entry to begin with a '>' followed by the taxa name and sequence lines. If your file includes an extra empty line at the end, this message can be safely ignored."<<endl;
 				break;}
 				
 				/*if (c2>10)
