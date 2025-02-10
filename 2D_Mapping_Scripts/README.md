@@ -47,7 +47,7 @@ Run the script:
 
 ```bash
 python3 script_name.py
-
+```
 Processed results and plots will be saved in the ./processed_output/ directory.
 
 ## Acknowledgment
