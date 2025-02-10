@@ -36,7 +36,7 @@ for entry in file_list:
 		continue
 	
 	name = entry.split('_')
-	gene_name = name[0] + '_' + name[1]
+	gene_name = os.path.splitext(entry)[0]
 	with open(entry) as f_in:
 		if 'Mission accomplished' in f_in.read():
 			# Start again from the beginning of the file
