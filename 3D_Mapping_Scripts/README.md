@@ -1,74 +1,63 @@
 # massprf-protein-coloring
-maps the output of massprf into a file that can be used in Chimera to color proteins
-execute 
+Maps the output of MASS-PRF into a file that can be used in Chimera to color proteins.
 
-    source("batchMASSPRF_To_Chimera.R") 
+## Installation
+Source the main script in R:
+```r
+source("batchMASSPRF_To_Chimera.R")
+```
 
-from R, which creates the batchMASSPRF_Chimera command in your local enviornment.
+## Dependencies
+- R packages:
+  - `bio3d`
+  - `Biostrings`
+  - `msa`
+- UCSF Chimera (for visualization)
 
-## dependencies
-  require("bio3d")
-  
-  require("Biostrings")
-  
-  require("muscle")
-  
-The coloring happens in Chimera, so you'll need that program too.
+## Example Calls
+```r
+# Single gene (S gene)
+batchMASSPRF_Chimera(
+  designFile = "example_inputs/S-design.tsv",
+  hasHeader  = TRUE,
+  onlySig    = FALSE,
+  bins       = 10,
+  midColor   = c(240,245,240),
+  logT       = FALSE
+)
 
-
-## example calls
-    #do one gene (S gene)
-    batchMASSPRF_Chimera(designFile = "example_inputs/S-design.tsv",hasHeader = T,onlySig = F,bins=10,midColor = c(240,245,240),logT = F)
-
-    #do multiple genes jointly
-    batchMASSPRF_Chimera(designFile = "example_inputs/batch-design.tsv",hasHeader = T,onlySig = F,bins=15,midColor = c(240,245,240),logT = 2)
-
+# Batch genes
+batchMASSPRF_Chimera(
+  designFile = "example_inputs/batch-design.tsv",
+  hasHeader  = TRUE,
+  onlySig    = FALSE,
+  bins       = 15,
+  midColor   = c(240,245,240),
+  logT       = 2
+)
+```
 
 ## Inputs
-designFile: a tsv file with each of the following columns (column names ignored)
+Your `designFile` is a TSV (tab-separated) file with columns:
 
-    pdbFile: The protein structure you are trying to map onto, in pdb format. REQUIRED INPUT
+1. **pdbFile**: Path to PDB structure file.  
+2. **MASSPRF_Nuc_Fasta**: Nucleotide FASTA from MASS-PRF (in-frame).  
+3. **MASSPRF_Table**: MASS-PRF output CSV with γ and CI values.  
+4. **scaling**: Scaling factor (1 or multiple of 3).  
+5. **outfile**: Path to write Chimera coloring script.
 
+Additional parameters:
+- **doOnly**: Vector of row indices to process. Default: all.
+- **hasHeader**: `TRUE`/`FALSE` (does design file include header?). Default: `FALSE`.
+- **sigSetting**: Significance rule (`average`, `any`, `majority`, `strict`). Default: `average`.
+- **onlySig**: `TRUE` to color only significant sites. Default: `TRUE`.
+- **rgb1**, **rgb2**: RGB triples for positive/negative γ. Default: red (`c(250,30,30)`), blue (`c(30,30,250)`).
+- **midColor**: Optional RGB triple for midpoint gradient. Default: `NULL`.
+- **bins**: Number of color bins. Default: `10` in examples.
+- **ehColor**: RGB triple for gaps/non-significant. Default: grey (`c(128,128,128)`).
 
-    MASSPRF_Nuc_Fasta: the nucleotide sequence representing your MASSPRF input, in open reading frame and in fasta format. REQUIRED INPUT
-
-
-    MASSPRF_Table: The output table from MASSPRF containing the gamma values and CI. REQUIRED INPUT
-    
-
-    scaling: the scale factor from MASSPRF--look in the output of MASSPRF to find this. 1 or a multiple of 3. REQUIRED INPUT
-
-
-    outfile: where the resultant commands for Chimera to color will be stored. Defaults chimeraColoring.txt
-
-
-    
-    
-
-doOnly: a vector of rows from the design file to use. Default is use all. (ex. c(1,3,4))
-    
-
-hasHeader: logical. Does your design file contain a header? Defaults FALSE
-    
-
-sigSetting: what are you using to determine significance? only affects scale factor 1; otherwise sitewise significance is used. Defaults average
-
-
-onlySig: T or F do you want to only color significant sites. Defaults T
-
-
-rgb1 and rgb2: vectors of size 3, corresponding to a rgb value for coloring the selection intensity. Defaults red and blue
-
-    
-midColor: vector of size 3, optional, corresponding to an rgb value. A midpoint color for a gradient between rgb1 and 2. Defaults NULL (i.e. 2 color gradient)
-
-
-bins: how many equally spaced apart color categories you want to use for your data. Defaults 10
-
-
-ehColor: what do you want to color 'eh' residues (missing data, nonsignificant) as a vector size three of rgb. Defaults grey
-
-
-## To Use
-run "read \<outfile\>;" on the Chimera command line 
-
+## Usage in Chimera
+After running the script, load the generated file in Chimera’s command line:
+```
+read <outfile>;
+```
