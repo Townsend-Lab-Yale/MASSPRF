@@ -1,8 +1,34 @@
 # MASS-PRF: Model Averaged Site Selection via Poisson Random Field 
-Updated in 2025/1/30
+Updated in 2025/9/19
 
 ## Overview
 MASS-PRF is a computational tool designed to detect regional variation in selection intensity within protein-coding genes using DNA sequence polymorphism and divergence data. This repository includes the program, preprocessing scripts, and a pipeline for genome-wide analysis.
+
+---
+
+## Updates in Version 1.32 (September 19, 2025)
+
+- **New gap handling parameters**
+  - Introduced `gap_policy`:
+    - `0`: skip codons with gaps (default)  
+    - `1`: treat gaps as missing data (equivalent to `-n 0`)  
+    - `2`: majority rule replacement (requires `gap_threshold`)  
+  - Introduced `gap_threshold` (float, default = 0.5), used only when `gap_policy=2`.  
+  - Both can also be set at runtime via environment variables:
+    ```bash
+    export GAP_POLICY=2 GAP_THRESHOLD=0.7
+    ```
+  - Program now prints `[GAP] policy=... threshold=...` at startup for transparency.
+
+- **Changed default of `-n` option**
+  - Old default: `1` (replace ambiguous nucleotides).  
+  - New default: `0` (treat as gap).  
+  - To maintain sequence integrity when ambiguous bases are common, explicitly use `-n 1`.
+
+- **Performance improvements**
+  - Automatic CPU core detection (`NUM_CPU`) for faster parallel computation on both Linux and non-Linux systems.
+
+---
 
 ---
 
