@@ -1,4 +1,5 @@
-# massprf-3D protein-coloring
+<h1 align="center">MASS-PRF 3D Protein Coloring</h1>
+<h3 align="center">Map MASS-PRF outputs onto protein structures in Chimera</h3>
 
 Map MASS-PRF outputs onto protein structures by generating a UCSF Chimera command script that colors residues by selection strength (γ).
 
