@@ -14,9 +14,8 @@ Map MASS-PRF outputs onto protein structures by generating a UCSF Chimera comman
 
 ## Example 3D Output
 
-<p align="center">
-  <img src="3D_Mapping_Scripts/example-outputs/image_SCH4_AF-P53334-F1-model_v4.pdb.png" width="600" alt="Example 3D MASS-PRF output in Chimera">
-</p>
+![Example 3D Output](3D_Mapping_Scripts/example-outputs/image_SCH4_AF-P53334-F1-model_v4.pdb.png)
+
 
 ---
 
