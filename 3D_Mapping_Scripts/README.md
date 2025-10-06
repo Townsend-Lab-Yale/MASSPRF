@@ -297,7 +297,7 @@ batchMASSPRF_Chimera(
 ## 11) FAQ
 
 **Q: Which format should I use?**  
-A: Use `AA` if you ran MASS-PRF to produce amino-acid rows (Jeff’s recommendation). Use `NT` if your MASS-PRF table is nucleotide-level (3× rows). Set `formatList` accordingly in the design TSV.
+A: Use `AA` if you ran MASS-PRF to produce amino-acid rows (Prof. Townsend’s recommendation). Use `NT` if your MASS-PRF table is nucleotide-level (3× rows). Set `formatList` accordingly in the design TSV.
 
 **Q: How exactly is significance defined?**  
 A: A site is significant if its CI excludes zero: `LCI > 0` (positive selection) or `UCI < 0` (negative selection). NAs are treated as non-significant.
