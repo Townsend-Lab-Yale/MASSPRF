@@ -1,5 +1,5 @@
 # MASS-PRF: Model Averaged Site Selection via Poisson Random Field 
-Updated in 2025/9/19
+Updated in 2025/9/19 by Yide Jin
 
 ## Overview
 MASS-PRF is a computational tool designed to detect regional variation in selection intensity within protein-coding genes using DNA sequence polymorphism and divergence data. This repository includes the program, preprocessing scripts, and a pipeline for genome-wide analysis.
