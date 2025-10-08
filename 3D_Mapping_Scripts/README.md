@@ -3,6 +3,9 @@
 
 Map MASS-PRF outputs onto protein structures by generating a UCSF Chimera command script that colors residues by selection strength (γ).
 
+## Version recommendation:
+Tested with UCSF Chimera 1.17.3. You can also use Chimera 1.19 (latest). The commands are compatible with both versions.
+
 > **What’s new (Oct 2025)**
 >
 > - Replaced **scaling factor** input with an explicit **output format** (`AA` vs `NT`) to match how MASS-PRF was run.
