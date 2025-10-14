@@ -11,7 +11,7 @@ MASS-PRF is a computational tool designed to detect regional variation in select
 - **New gap handling parameters**
   - Introduced `gap_policy`:
     - `0`: skip codons with gaps (default)  
-    - `1`: treat gaps as missing data (equivalent to `-n 0`)  
+    - `1`: Treat gaps as missing data means we keep the site but ignore the sequences that have a gap at that site, and this follows the same rule as -n 0 which also ignores uncertain bases instead of replacing them.  
     - `2`: majority rule replacement (requires `gap_threshold`)  
   - Introduced `gap_threshold` (float, default = 0.5), used only when `gap_policy=2`.  
   - Both can also be set at runtime via environment variables:
