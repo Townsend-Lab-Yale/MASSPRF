@@ -1,3 +1,5 @@
+**Update by Yide Jin at 2025-10-15 **  
+
 ## 2D Processing: MASS-PRF Output → CSV, Site Lists, and Plots
 
 ## 2D Usage 
@@ -8,57 +10,68 @@ Place your MASS-PRF `*.txt` result files in the **same folder** as the 2D script
 The scripts look for:
 - A completion line like **`Mission accomplished`**.  
 - A results table **between** the header line and the abbreviation block.  
-  The **original** script expects the exact header & footer lines (string match).  fileciteturn2file1  
-  The **new-fixed** script locates the table using **anchor strings** with fallback logic (more tolerant).  fileciteturn2file0
+  The **original** script expects the exact header & footer lines (string match).    
+  The **new-fixed** script locates the table using **anchor strings** with fallback logic (more tolerant).  
 
 ### 2) Run
 ```bash
-# Original (baseline)
-python3 2D_process_massprf_res.py
 
-# New (fixed)
-python3 "2D_new_fixed (3).py"
+python3 2D_process_massprf_res.py
+MASS-PRF 2D processing is the bridge between the **core MASS-PRF** run and the **3D structure-mapping** step. It reads per-gene plain‑text outputs from MASS-PRF, verifies completion, parses the results table, optionally expands scaled sites to **per‑nucleotide resolution**, classifies selection at the site and gene level, and emits clean, machine‑readable files (CSV and site lists) plus publication‑ready **2D Gamma plots**. These outputs are then used by the 3D mapping scripts to color protein structures in UCSF Chimera/ChimeraX. Use this README as a practical guide to run the 2D script, understand its outputs, and hand them off to the 3D stage.
+
+
 ```
 
 ### 3) Outputs (auto-created under `./processed_output/`)
 
 **Per-gene CSV:** `<GENE>.csv` with at least  
-`Position, DivergentTime, Gamma, Lower_CI_Gamma, Upper_CI_Gamma`  (new-fixed guarantees per-NT Position from 1..N)  fileciteturn2file0
+`Position, DivergentTime, Gamma, Lower_CI_Gamma, Upper_CI_Gamma`  (new-fixed guarantees per-NT Position from 1..N)  
 
 **Site lists:**  
 - `<GENE>_pos_sites.txt` — `Gamma > 4` **and** `Lower_CI_Gamma > 0`  
 - `<GENE>_str_pos_sites.txt` — `Gamma > 4` **and** `Lower_CI_Gamma > 4`  
 - `<GENE>_neg_sites.txt` — `Gamma < -1` **and** `Upper_CI_Gamma < 0`  
-(Thresholds are identical in both versions.)  fileciteturn2file1
+(Thresholds are identical in both versions.)  
 
-**Summary lists:** `Positive_genes.txt`, `Strongly_positive_genes.txt`, `Negative_genes.txt`, `Boring_genes.txt`, `Failed_genes.txt` (both versions).  fileciteturn2file1
+**Summary lists:** `Positive_genes.txt`, `Strongly_positive_genes.txt`, `Negative_genes.txt`, `Boring_genes.txt`, `Failed_genes.txt` (both versions).  
 
 **Plots:** `./processed_output/plots/<GENE>.pdf`  
 - X-axis: position (original labels "Nucleotide position"; new-fixed uses generic "position")  
-- Y-axis: scaled selection coefficient (gamma); shaded CI band; 0-reference line  fileciteturn2file1turn2file0
+- Y-axis: scaled selection coefficient (gamma); shaded CI band; 0-reference line  
 
 ### 4) Hand-off to 3D
 - The **CSV** is the numeric backbone for coloring (continuous ramp by `Gamma` or CI-aware bins).  
 - The **site lists** act as masks to select/highlight residues (e.g., strongly positive).  
 - If your 3D workflow needs **amino-acid numbering**, map nucleotide positions to residues (NT→codon→AA) before coloring.
 
+### Practical tips & troubleshooting
+
+- **File naming**: keep each result as one `*.txt` per gene/region. Avoid duplicate stems; the script uses the file stem as the gene ID.
+- **Where are my outputs?** If a gene is missing its CSV or plot, check `Failed_genes.txt` for the reason (no completion flag; table not found).
+- **Scaling messages**: if MASS-PRF prints `Scaling by supplied factor of X`, the script expands each row **X-fold**; if it prints `No Scaling requested`, positions remain 1:1.
+- **CI-based filters**: “positive/strongly positive/negative” rely on both `Gamma` **and** its CI bound. Borderline sites may be excluded by design.
+- **Reproducibility**: record upstream flags (`gap_policy`, `gap_threshold`, `-n`) with your outputs. They affect which codons/sites contribute to estimates.
+- **Large batches**: processing is per‑file; you can parallelize by splitting input files into subfolders and running multiple instances.
+- **Plot sanity checks**: expect a horizontal zero line and a CI band; sudden position jumps usually indicate missing scaling expansion upstream.
+
+### Hand-off checklist for 3D
+
+- Have `<GENE>.csv` and any site lists (`_str_pos_sites.txt`, `_pos_sites.txt`, `_neg_sites.txt`) ready.
+- If your 3D workflow colors **amino‑acid residues**, prepare a nucleotide→codon→residue map so that `Position` aligns with residue numbering.
+- For batch jobs, first filter genes by `Positive_genes.txt` / `Strongly_positive_genes.txt` to prioritize interesting cases.
+
+
 ---
 
-## What’s updated (new-fixed vs original)
 
-| Area | Original: `2D_process_massprf_res.py` | New-fixed: `2D_new_fixed (3).py` |
-|---|---|---|
-| **Robustness of parsing** | Relies on **exact string match** for the header line and a very long **exact** abbreviation line; may fail if upstream print format changes. fileciteturn2file1 | Uses **anchor substrings** and a **fallback** (first blank line) to find the table; more tolerant to format/whitespace differences. fileciteturn2file0 |
-| **Scaling detection** | Requires seeing “Scaling by supplied factor of X” or “No Scaling requested”; otherwise **raises error** and stops. fileciteturn2file1 | Extracts scaling when present; if missing, **defaults to 1** to avoid hard failure. fileciteturn2file0 |
-| **Nucleotide expansion** | Expands to NT **only when needed**; position rebuilt 1..N in code blocks that handle pos/neg cases separately. fileciteturn2file1 | **Always** uses a single `descale_to_nt()` to expand to per-NT grid, then **uniformly** rebuilds `Position = 1..N` for downstream consistency. fileciteturn2file0 |
-| **Type coercion & columns** | Coerces `Gamma`/CIs; table parsing via simple `split()`; column set depends on header line tokens. fileciteturn2file1 | Centralized `parse_table()` coerces numerics for `Position, DivergentTime, Gamma, Lower_CI_Gamma, Upper_CI_Gamma` when present; trims/normalizes row tokens. fileciteturn2file0 |
-| **File name → gene id** | `gene_name = name[0] + '_' + name[1]` (first two underscore tokens only). fileciteturn2file1 | `gene_name = basename(entry).split('.')[0]` (keeps full stem; avoids accidental truncation). fileciteturn2file0 |
-| **Plotting** | Plots in a **second pass** over CSVs; X label is `"Nucleotide position"`. fileciteturn2file1 | Plots **immediately** per gene after CSV write; X label is generic `"position"` to be NT/AA-agnostic. fileciteturn2file0 |
-| **Failure handling** | Prints “Failed: …” when missing “Mission accomplished”; may stop on scaling not found. fileciteturn2file1 | Logs to `Failed_genes.txt` and **continues**; scaling missing falls back to 1; parsing has defensive fallbacks. fileciteturn2file0 |
+## What’s updated
 
-**Bottom line:** The new version is more robust, more tolerant of variations in upstream output, and produces more consistent results — reducing the risk of crashes or false “failed run” detections caused by minor formatting differences.
+- The script is now **more robust to upstream format changes**: results table detection uses tolerant anchors and fallbacks; missing scaling defaults to 1 instead of stopping.
+- **Per‑nucleotide expansion is standardized**: after parsing, positions are rebuilt as a continuous `1..N` grid to keep downstream 3D mapping consistent.
+- **Failure handling is cleaner**: files without a completion flag or with unparsable tables are logged to `Failed_genes.txt`, while the rest continue to process.
+- **Output consistency**: per‑gene CSV columns are normalized (`Position, DivergentTime, Gamma, Lower_CI_Gamma, Upper_CI_Gamma` when present); plot labels are generic enough for NT or AA contexts.
+- **Filename handling is safer**: gene identifiers are derived from the full basename (before `.txt`) to avoid accidental truncation when underscores are present.
 
----
 
 ## Minimal example layout
 
@@ -96,8 +109,8 @@ pip install pandas matplotlib numpy
 
 ## Notes & tips
 
-- If you use **scaling** upstream, the new-fixed script will **always** expand to per-NT; this makes 3D stage simpler and standardized. fileciteturn2file0  
-- Both versions share the **same thresholds** for site classification; differences in gene lists are usually due to **parsing robustness** and **position expansion** differences rather than logic changes. fileciteturn2file1turn2file0
+- If you use **scaling** upstream, the new-fixed script will **always** expand to per-NT; this makes 3D stage simpler and standardized.   
+- Both versions share the **same thresholds** for site classification; differences in gene lists are usually due to **parsing robustness** and **position expansion** differences rather than logic changes. 
 
 
 ## Acknowledgment
