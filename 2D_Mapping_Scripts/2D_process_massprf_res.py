@@ -1,6 +1,7 @@
-#!/usr/bin/python3
+# Updated 2025-10-15 by Yide Jin
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 
-import sys
 import os
 import re
 from os.path import isfile, join
@@ -8,214 +9,191 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 
-# get list of files in directory #
-wd = os.getcwd()
-file_list = [f for f in os.listdir(wd) if isfile(join(wd, f))]
+# -------------------------
+# Helpers
+# -------------------------
 
-# If necessary, make some directories for the processed results and plots
+RESULTS_ANCHOR = '//Results based on model averaging of gamma using different models'
+ABBREV_ANCHOR  = 'Abbreviation: MS=Model Selection; MA=Model Averaging; CI=Confidence Interval'
 
-proc_dir = './processed_output/'
-plot_dir = './processed_output/plots/'
+def find_block(lines):
+    """Return start/end indices (exclusive) for the MASS-PRF results table block."""
+    start = None
+    end = None
+    for i, ln in enumerate(lines):
+        if RESULTS_ANCHOR in ln:
+            start = i + 1  # header line is next
+            break
+    if start is None:
+        raise ValueError("Could not find results header anchor in file.")
+    for j in range(start, len(lines)):
+        if lines[j].startswith(ABBREV_ANCHOR):
+            end = j
+            break
+    if end is None:
+        # Fallback: stop at first completely blank line after header
+        for j in range(start, len(lines)):
+            if not lines[j].strip():
+                end = j
+                break
+    if end is None:
+        end = len(lines)
+    return start, end
 
-if not os.path.exists(proc_dir):
-    os.makedirs(proc_dir)
-if not os.path.exists(plot_dir):
-    os.makedirs(plot_dir)
+def parse_table(lines):
+    """Parse the MASS-PRF results table into a DataFrame with robust whitespace handling."""
+    s, e = find_block(lines)
+    block = [ln.rstrip() for ln in lines[s:e] if ln.strip()]  # drop empties
+    if not block:
+        raise ValueError("Results block is empty.")
+    header_line = block[0]
+    cols = re.split(r'\s+', header_line.strip())
+    rows = []
+    for ln in block[1:]:
+        toks = re.split(r'\s+', ln.strip())
+        # Normalize token count to header length
+        if len(toks) < len(cols):
+            toks += [''] * (len(cols) - len(toks))
+        elif len(toks) > len(cols):
+            toks = toks[:len(cols)]
+        rows.append(toks)
+    df = pd.DataFrame(rows, columns=cols)
+    # Coerce numerics where applicable (ignoring non-numeric like R/S/* in the last two cols)
+    for c in ['Position', 'DivergentTime', 'Gamma', 'Lower_CI_Gamma', 'Upper_CI_Gamma']:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors='coerce')
+    return df
 
-# make lists to keep track of your genes 
-boring_l = []
-neg_l = []
-pos_l = []
-failed_l = []
-str_pos_l = []
+def extract_scaling(lines):
+    """Infer scaling factor from MASS-PRF text. Defaults to 1 if not found."""
+    scaling = None
+    for ln in lines:
+        if "Scaling by supplied factor of" in ln:
+            try:
+                scaling = int(ln.split("Scaling by supplied factor of")[-1].strip())
+            except Exception:
+                pass
+        elif "No Scaling requested" in ln:
+            scaling = 1
+    if scaling is None:
+        # default to 1 but don't crash
+        scaling = 1
+    return scaling
 
-# Iterate through each file in the directory, checking to see if each run succeeded,
-# and if so, whether it contains site showing positive or negative selection. 
-for entry in file_list:
-    if ".txt" not in entry:
-        continue
-    
-    name = entry.split('_')
-    gene_name = name[0] + '_' + name[1]
-    with open(entry) as f_in:
-        if 'Mission accomplished' in f_in.read():
-            # Start again from the beginning of the file
-            f_in.seek(0)
-            lines = f_in.read().splitlines()
-            # Get scaling factor from MASS-PRF output to de-scale results
-            scaling_factor = None
-            for line in lines:
-                if "Scaling by supplied factor of" in line:
-                    # Example line: "Scaling by supplied factor of 3"
-                    try:
-                        scaling_factor = int(line.split("Scaling by supplied factor of")[-1].strip())
-                    except ValueError:
-                        print("Unable to parse scaling factor. Please check output format:", line)
-                elif "No Scaling requested" in line:
-                    scaling_factor = 1
+def descale_to_nt(df, scaling):
+    """Expand each scaled site row into nucleotide-resolution rows (position 1..N)."""
+    # If scaling is 1, we still want a copy to operate uniformly
+    out_cols = list(df.columns)
+    # Build expanded frame
+    expanded = []
+    for _, row in df.iterrows():
+        for _ in range(int(scaling)):
+            expanded.append(row.values.tolist())
+    out = pd.DataFrame(expanded, columns=out_cols)
+    # Rebuild 1..N position (generic 'Position')
+    if 'Position' in out.columns:
+        out = out.drop(columns=['Position'])
+    out.insert(0, 'Position', list(range(1, len(out) + 1)))
+    return out
 
-            if scaling_factor is None:
-                raise ValueError("Scaling factor not found! Please check the MassPRF output format.")
-                    
-            intro = '//Results based on model averaging of gamma using different models: '
-            intro_index = lines.index(intro)
-            end = 'Abbreviation: MS=Model Selection; MA=Model Averaging; CI=Confidence Interval; ps=Polymorphism Synonymous; pr=Polymorphism Replacement; ds=Divergence Synonymous; dr=Divergence Replacement; Gamma=N*s (Gamma: scaled selection coefficient (selection intensity); N: haploid effective population size; s: selection coefficient); NI=Neutrality Index (NI=(pr/dr)/(ps/ds), >1 Negative selection, <1 Positive selection); INF=Infinite; N-INF=Negative Infinite;'
-            end_index = lines.index(end)
-            chart_lines = lines[intro_index + 1: end_index - 1]
-            pd_l = []
-            [pd_l.append(item.split()) for item in chart_lines]
-            # Create a pd dataframe for the results
-            scaled_sel_df = pd.DataFrame(pd_l[1:], columns=[i for i in pd_l[0]]) 
+def write_lists(proc_dir, neg_l, pos_l, str_pos_l, boring_l, failed_l):
+    with open(join(proc_dir, "Negative_genes.txt"), "w") as f:
+        f.write('\n'.join(neg_l) + '\n')
+    with open(join(proc_dir, "Positive_genes.txt"), "w") as f:
+        f.write('\n'.join(pos_l) + '\n')
+    with open(join(proc_dir, "Strongly_positive_genes.txt"), "w") as f:
+        f.write('\n'.join(str_pos_l) + '\n')
+    with open(join(proc_dir, "Boring_genes.txt"), "w") as f:
+        f.write('\n'.join(boring_l) + '\n')
+    with open(join(proc_dir, "Failed_genes.txt"), "w") as f:
+        f.write('\n'.join(failed_l) + '\n')
 
-            scaled_sel_df['Lower_CI_Gamma'] = pd.to_numeric(scaled_sel_df['Lower_CI_Gamma'], errors='coerce')
-            scaled_sel_df['Gamma'] = pd.to_numeric(scaled_sel_df['Gamma'], errors='coerce')
-            scaled_sel_df['Upper_CI_Gamma'] = pd.to_numeric(scaled_sel_df['Upper_CI_Gamma'], errors='coerce')
-            scaled_pos_df = scaled_sel_df[(scaled_sel_df.Gamma > 4) & (scaled_sel_df.Lower_CI_Gamma > 0)]
-            scaled_str_pos_df = scaled_sel_df[(scaled_sel_df.Gamma > 4) & (scaled_sel_df.Lower_CI_Gamma > 4)]
-            scaled_neg_df = scaled_sel_df[(scaled_sel_df.Gamma < -1) & (scaled_sel_df.Upper_CI_Gamma < 0)]
-            if scaled_pos_df.empty:
-                if scaled_neg_df.empty:
-                    boring_l.append(gene_name)
-                    print("Boring: " + gene_name)
-                else:
-                    # The results need to be de-scaled to match with actual positions along a gene
-                    # Here we de-scale completely to the nucleotide position (result_position*scaling_factor),
-                    # though you can adjust this to scale to amino acid position ((result_positon*scaling_factor)/3)
-                    sel_df = pd.DataFrame(columns=scaled_sel_df.columns)
-                    posit = 0
-                    for index, row in scaled_sel_df.iterrows():
-                        for i in range(0, scaling_factor):
-                            sel_df.loc[posit] = row
-                            posit += 1
-                    sel_df.drop('Position', axis=1, inplace=True)
-                    position_list = list(range(1, len(sel_df) + 1))
-                    sel_df.insert(0, 'Position', position_list)
-                    pos_df = sel_df[(sel_df.Gamma > 4) & (sel_df.Lower_CI_Gamma > 0)]
-                    str_pos_df = sel_df[(sel_df.Gamma > 4) & (sel_df.Lower_CI_Gamma > 4)]
-                    neg_df = sel_df[(sel_df.Gamma < -1) & (sel_df.Upper_CI_Gamma < 0)]
+# -------------------------
+# Main
+# -------------------------
 
-                    ## If we got here, pos_df and neg_df can't both be empty so
+def main():
+    wd = os.getcwd()
+    file_list = [f for f in os.listdir(wd) if isfile(join(wd, f)) and f.lower().endswith(".txt")]
 
-                    if pos_df.empty:
-                        neg_l.append(name[0])
-                        neg_sites = list(neg_df['Position'])
-                        neg_sites_st = [str(int) for int in neg_sites]
-                        sel_df.to_csv(proc_dir + gene_name + ".csv", index=False)
-                        neg_f = open(proc_dir + gene_name + "_neg_sites.txt", "w")
-                        neg_f.write('\n'.join(neg_sites_st) + '\n')
-                        neg_f.close()
+    proc_dir = './processed_output/'
+    plot_dir = './processed_output/plots/'
+    os.makedirs(proc_dir, exist_ok=True)
+    os.makedirs(plot_dir, exist_ok=True)
 
-                    else:
-                        pos_l.append(name[0])
-                        pos_sites = list(pos_df['Position'])
-                        pos_sites_st = [str(int) for int in pos_sites]
-                        pos_f = open(proc_dir + gene_name + "_pos_sites.txt", "w")
-                        pos_f.write('\n'.join(pos_sites_st) + '\n')
-                        pos_f.close()
-                        if not str_pos_df.empty:
-                            str_pos_l.append(name[0])
-                            str_pos_sites = list(str_pos_df['Position'])
-                            str_pos_sites_st = [str(int) for int in str_pos_sites]
-                            str_pos_f = open(proc_dir + gene_name + "_str_pos_sites.txt", "w")
-                            str_pos_f.write('\n'.join(str_pos_sites_st) + '\n')
-                            str_pos_f.close()
-                        if neg_df.empty:
-                            sel_df.to_csv(proc_dir + gene_name + ".csv", index=False)
-                        else:
-                            neg_l.append(name[0])
-                            neg_sites = list(neg_df['Position'])
-                            neg_sites_st = [str(int) for int in neg_sites]
-                            sel_df.to_csv(proc_dir + gene_name + ".csv", index=False)
-                            neg_f = open(proc_dir + gene_name + "_neg_sites.txt", "w")
-                            neg_f.write('\n'.join(neg_sites_st) + '\n')
-                            
-            else:
-                # The results need to be de-scaled to match with actual positions along a gene
-                # Here we de-scale completely to the nucleotide position (result_position*scaling_factor),
-                # though you can adjust this to scale to amino acid position ((result_positon*scaling_factor)/3)
-                sel_df = pd.DataFrame(columns=scaled_sel_df.columns)
-                posit = 0
-                for index, row in scaled_sel_df.iterrows():
-                    for i in range(0, scaling_factor):
-                        sel_df.loc[posit] = row
-                        posit += 1
-                sel_df.drop('Position', axis=1, inplace=True)
-                position_list = list(range(1, len(sel_df) + 1))
-                sel_df.insert(0, 'Position', position_list)
-                pos_df = sel_df[(sel_df.Gamma > 4) & (sel_df.Lower_CI_Gamma > 0)]
-                str_pos_df = sel_df[(sel_df.Gamma > 4) & (sel_df.Lower_CI_Gamma > 4)]
-                neg_df = sel_df[(sel_df.Gamma < -1) & (sel_df.Upper_CI_Gamma < 0)]
+    boring_l, neg_l, pos_l, failed_l, str_pos_l = [], [], [], [], []
 
-                ## If we got here, pos_df and neg_df can't both be empty so
+    for entry in file_list:
+        # Expect filenames like NAME_SUFFIX.txt -> use first two tokens for gene name
+        name_parts = entry.split('_')
+        gene_name = os.path.splitext(os.path.basename(entry))[0]
 
-                if pos_df.empty:
-                    neg_l.append(name[0])
-                    neg_sites = list(neg_df['Position'])
-                    neg_sites_st = [str(int) for int in neg_sites]
-                    sel_df.to_csv(proc_dir + gene_name + ".csv", index=False)
-                    neg_f = open(proc_dir + gene_name + "_neg_sites.txt", "w")
-                    neg_f.write('\n'.join(neg_sites_st) + '\n')
-                    neg_f.close()
+        try:
+            with open(entry, encoding='utf-8', errors='ignore') as fh:
+                text = fh.read()
+            if 'Mission accomplished' not in text:
+                print(f"Failed: {gene_name} (no 'Mission accomplished')")
+                failed_l.append(gene_name)
+                continue
 
-                else:
-                    pos_l.append(name[0])
-                    pos_sites = list(pos_df['Position'])
-                    pos_sites_st = [str(int) for int in pos_sites]
-                    pos_f = open(proc_dir + gene_name + "_pos_sites.txt", "w")
-                    pos_f.write('\n'.join(pos_sites_st) + '\n')
-                    pos_f.close()
-                    if not str_pos_df.empty:
-                        str_pos_l.append(name[0])
-                        str_pos_sites = list(str_pos_df['Position'])
-                        str_pos_sites_st = [str(int) for int in str_pos_sites]
-                        str_pos_f = open(proc_dir + gene_name + "_str_pos_sites.txt", "w")
-                        str_pos_f.write('\n'.join(str_pos_sites_st) + '\n')
-                        str_pos_f.close()
-                    if neg_df.empty:
-                        sel_df.to_csv(proc_dir + gene_name + ".csv", index=False)
-                    else:
-                        neg_l.append(name[0])
-                        neg_sites = list(neg_df['Position'])
-                        neg_sites_st = [str(int) for int in neg_sites]
-                        sel_df.to_csv(proc_dir + gene_name + ".csv", index=False)
-                        neg_f = open(proc_dir + gene_name + "_neg_sites.txt", "w")
-                        neg_f.write('\n'.join(neg_sites_st) + '\n')
-        else:
-            print("Failed: " + gene_name)
+            lines = text.splitlines()
+            # Parse table
+            table = parse_table(lines)
+
+            # Scaling: expand to per-nucleotide to unify downstream
+            scaling = extract_scaling(lines)
+            sel_df = descale_to_nt(table, scaling)
+
+            # Significance filters (same as before)
+            pos_df = sel_df[(sel_df['Gamma'] > 4) & (sel_df['Lower_CI_Gamma'] > 0)]
+            str_pos_df = sel_df[(sel_df['Gamma'] > 4) & (sel_df['Lower_CI_Gamma'] > 4)]
+            neg_df = sel_df[(sel_df['Gamma'] < -1) & (sel_df['Upper_CI_Gamma'] < 0)]
+
+            # Always write the full per-NT CSV
+            out_csv = join(proc_dir, f"{gene_name}.csv")
+            sel_df.to_csv(out_csv, index=False)
+
+            # Site lists
+            if not pos_df.empty:
+                pos_l.append(gene_name)
+                with open(join(proc_dir, f"{gene_name}_pos_sites.txt"), "w") as f:
+                    f.write('\n'.join(map(lambda x: str(int(x)), pos_df['Position'].tolist())) + '\n')
+                if not str_pos_df.empty:
+                    str_pos_l.append(gene_name)
+                    with open(join(proc_dir, f"{gene_name}_str_pos_sites.txt"), "w") as f:
+                        f.write('\n'.join(map(lambda x: str(int(x)), str_pos_df['Position'].tolist())) + '\n')
+            if not neg_df.empty:
+                neg_l.append(gene_name)
+                with open(join(proc_dir, f"{gene_name}_neg_sites.txt"), "w") as f:
+                    f.write('\n'.join(map(lambda x: str(int(x)), neg_df['Position'].tolist())) + '\n')
+            if pos_df.empty and neg_df.empty:
+                boring_l.append(gene_name)
+                print("Boring: " + gene_name)
+
+            # Plot
+            try:
+                import numpy as np
+                x = sel_df['Position'].to_numpy(dtype=float)
+                y = sel_df['Gamma'].to_numpy(dtype=float)
+                ylo = sel_df['Lower_CI_Gamma'].to_numpy(dtype=float)
+                yhi = sel_df['Upper_CI_Gamma'].to_numpy(dtype=float)
+                plt.plot(x, y)
+                plt.fill_between(x, ylo, yhi, alpha=0.2)
+                plt.axhline(y=0, color='black', linestyle='-')
+                plt.xlabel('position')  # generic label for NT or AA
+                plt.ylabel('Scaled selection coefficient (gamma)')
+                plt.savefig(join(plot_dir, f"{gene_name}.pdf"))
+                plt.close()
+            except Exception as plot_err:
+                print(f"Plot failed for {gene_name}: {plot_err}")
+
+        except Exception as e:
+            print(f"Failed: {gene_name} ({e})")
             failed_l.append(gene_name)
 
-## Plot your significant results!
+    # Final lists
+    write_lists(proc_dir, neg_l, pos_l, str_pos_l, boring_l, failed_l)
 
-results_list = [f for f in os.listdir(proc_dir) if isfile(join(proc_dir, f))]
+if __name__ == "__main__":
+    main()
 
-for entry in results_list:
-    if entry.endswith(".csv"):
-        name = entry.split('.')[0]
-        data = pd.read_csv(proc_dir + entry)
-        plt.plot(data['Position'], data['Gamma'])
-        plt.fill_between(data['Position'], data['Lower_CI_Gamma'], data['Upper_CI_Gamma'], alpha=0.2)
-        plt.axhline(y=0, color='black', linestyle='-')
-        plt.xlabel('Nucleotide position')
-        plt.ylabel('Scaled selection coefficient (gamma)')
-        plt.savefig(plot_dir + name + '.pdf')
-        plt.close()
-
-neg_f = open(proc_dir + "Negative_genes.txt", "w")
-neg_f.write('\n'.join(neg_l) + '\n')
-neg_f.close()
-
-pos_f = open(proc_dir + "Positive_genes.txt", "w")
-pos_f.write('\n'.join(pos_l) + '\n')
-pos_f.close()
-
-str_pos_f = open(proc_dir + "Strongly_positive_genes.txt", "w")
-str_pos_f.write('\n'.join(str_pos_l) + '\n')
-str_pos_f.close()
-
-boring_f = open(proc_dir + "Boring_genes.txt", "w")
-boring_f.write('\n'.join(boring_l) + '\n')
-boring_f.close()
-
-failed_f = open(proc_dir + "Failed_genes.txt", "w")
-failed_f.write('\n'.join(failed_l) + '\n')
-failed_f.close()
