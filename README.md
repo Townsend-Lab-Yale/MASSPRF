@@ -30,6 +30,25 @@ MASS-PRF is a computational tool designed to detect regional variation in select
 
 ---
 
+## Pipeline Overview
+
+- **This stage (MASS-PRF core):**  
+  Run `massprf` per gene/region to produce plain-text results (`*.txt`).  
+  Core options such as `gap_policy`, `gap_threshold`, and the default `-n 0` affect which sites/codons contribute to the results table.
+
+- **Downstream (2D processing):**  
+  - Read `*.txt` and confirm the run finished successfully  
+  - Parse the results table  
+  - Expand to per-nucleotide positions when a scaling factor was used  
+  - Classify selection and save **tidy CSV** + **site lists**  
+  - Generate **2D Gamma + CI** plots (PDF)
+
+- **Downstream (3D mapping):**  
+  Use the per-gene CSVs and site lists to color protein structures (UCSF Chimera/ChimeraX).  
+  Typical usage: color by `Gamma` and highlight sites from the positive/negative lists.  
+  See `3D_Mapping_Scripts/` for examples.
+
+> Note: The current 2D script name reflects the **new fixed** implementation, while keeping the original filename (`2D_process_massprf_res.py`) for backward compatibility.
 ---
 
 ## Installation
