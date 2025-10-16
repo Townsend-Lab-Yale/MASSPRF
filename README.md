@@ -8,27 +8,26 @@ MASS-PRF is a computational tool designed to detect regional variation in select
 
 ## Updates in Version 1.32 (September 19, 2025)
 
-- **New gap handling parameters**
-  - Introduced `gap_policy`:
-    - `0`: skip codons with gaps (default)  
-    - `1`: This keep the site but ignore the sequences that have a gap at that site, and this follows the same rule as -n 0 which also ignores uncertain bases instead of replacing them.  
-    - `2`: majority rule replacement (requires `gap_threshold`)  
-  - Introduced `gap_threshold` (float, default = 0.5), used only when `gap_policy=2`.  
-  - Both can also be set at runtime via environment variables:
+- **New gap-handling controls**
+  - `gap_policy` (controls how alignment gaps “–” are treated at each **site**):
+    - `0` — **Skip gapped sites** (default): if any sequence has a gap at the site, the site is excluded from analysis.  
+    - `1` — **Keep site, drop gapped sequences**: analyze the site using only sequences without a gap at that position (**requires ≥ 2 sequences with valid nucleotides**).  
+    - `2` — **Majority-rule replacement**: replace gaps using the consensus nucleotide **only if** the non-gap majority at the site is ≥ `gap_threshold`; otherwise exclude the site.
+  - `gap_threshold` (float, default `0.5`): used **only** when `gap_policy = 2`; sets the required non-gap majority fraction for replacement.
+  - Both settings can be provided via environment variables:
     ```bash
     export GAP_POLICY=2 GAP_THRESHOLD=0.7
     ```
-  - Program now prints `[GAP] policy=... threshold=...` at startup for transparency.
+  - On startup the program now reports the active settings, e.g. `[GAP] policy=2 threshold=0.7`.
 
-- **Changed default of `-n` option**
-  - Old default: `1` (replace ambiguous nucleotides).  
-  - New default: `0` (treat as gap).  
-  - To maintain sequence integrity when ambiguous bases are common, explicitly use `-n 1`.
+- **Revised default for `-n` (ambiguous bases)**
+  - **Old default:** `-n 1` (replace ambiguous, non-ATGC nucleotides).  
+  - **New default:** `-n 0` (treat ambiguous nucleotides as missing; exclude the site).  
+  - If ambiguous bases are common and you wish to impute them, specify `-n 1` (majority replacement) or `-n 2` (apply the same majority rule to **both** ambiguous bases **and** gaps, equivalent to `gap_policy = 2` for gaps).
 
-- **Performance improvements**
-  - Automatic CPU core detection (`NUM_CPU`) for faster parallel computation on both Linux and non-Linux systems.
+- **Performance**
+  - Automatic CPU core detection (`NUM_CPU`) enables faster parallel execution across platforms.
 
----
 
 ## Pipeline Overview
 
