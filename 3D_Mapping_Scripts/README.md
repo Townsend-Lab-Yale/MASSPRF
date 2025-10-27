@@ -29,6 +29,72 @@ Tested with UCSF Chimera 1.17.3. You can also use Chimera 1.19 (latest). The com
 
 ```r
 # core
+
+## What’s new: fixed γ range & out-of-range handling
+
+We added a **fixed gamma range** and a small helper to map γ values consistently across projects. Two new arguments are exposed in the wrapper:
+
+```r
+# New parameters (defaults shown)
+minGamma = -4
+maxGamma = 50
+```
+
+**Behavior**
+
+- The global color palette is now built using a **symmetric split** around 0 with separate ramps for negative and positive γ.  
+- γ values **below `minGamma`** are clamped into the **lowest (blue) bin**; values **above `maxGamma`** are clamped into the **highest (red) bin**.  
+- If `logT` is numeric (e.g., `logT = 2`), the same fixed range is respected in **signed-log space** for smoother contrasts while preserving sign.
+
+**Backwards compatibility**
+
+- If all observed γ already fall within `[minGamma, maxGamma]`, the colors you obtained previously should remain qualitatively consistent, with improved stability across batches.
+
+### Updated function signature (excerpt)
+
+```r
+batchMASSPRF_Chimera(
+  designFile,
+  doOnly     = NULL,
+  hasHeader  = FALSE,
+  sigSetting = "average",
+  onlySig    = FALSE,
+  rgb1       = c(250, 30, 30),
+  rgb2       = c(30, 30, 250),
+  bins       = 510,
+  ehColor    = c(180, 180, 180),
+  midColor   = c(240, 240, 240),
+  logT       = 2,        # numeric for signed-log scaling; use FALSE for linear
+  verbose    = FALSE,
+  minGamma   = -4,       # NEW: fixed γ lower bound
+  maxGamma   = 50        # NEW: fixed γ upper bound
+)
+```
+
+### Example
+
+```r
+batchMASSPRF_Chimera(
+  designFile = "design.tsv",
+  hasHeader  = TRUE,
+  onlySig    = FALSE,
+  bins       = 15,
+  midColor   = c(240, 240, 240),
+  ehColor    = c(0, 180, 0),
+  logT       = 2,
+  minGamma   = -4,
+  maxGamma   = 50
+)
+```
+
+> Note: We now **conditionally install** dependencies to avoid reinstalling packages you already have:
+> ```r
+> if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
+> if (!requireNamespace("msa", quietly = TRUE)) BiocManager::install("msa")
+> if (!requireNamespace("bio3d", quietly = TRUE)) install.packages("bio3d")
+> ```
+> (The script also uses **Biostrings**; please ensure it’s installed: `BiocManager::install("Biostrings")`.)
+
 install.packages(c("readr","dplyr"))
 
 # from Bioconductor
