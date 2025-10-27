@@ -10,17 +10,15 @@
 # ============================================================
 
 
-library(readr)
-library(dplyr)
-
 if (!requireNamespace("BiocManager", quietly = TRUE))
   install.packages("BiocManager")
 
-BiocManager::install("msa")
-install.packages("bio3d")
+if (!requireNamespace("msa", quietly = TRUE))
+  BiocManager::install("msa")
 
-library(msa)
-library(bio3d)
+if (!requireNamespace("bio3d", quietly = TRUE))
+  install.packages("bio3d")
+
 
 # Main wrapper
 batchMASSPRF_Chimera <-
@@ -34,13 +32,17 @@ batchMASSPRF_Chimera <-
            bins = 510,               # number of bins
            ehColor = c(180, 180, 180), # default color
            midColor = c(240, 240, 240), # optional midpoint color
-           logT = FALSE,             # if numeric, base for log-scaling; if FALSE, linear
-           verbose = FALSE) {        # verbose printing
+           logT = T,             # if numeric, base for log-scaling; if FALSE, linear
+           verbose = FALSE,      # verbose printing
+           minGamma = -4,
+           maxGamma = 50) {  # fixed gamma range      
     
     # load dependencies
     require("bio3d")
     require("Biostrings")
     require("msa")
+    library(readr)
+    library(dplyr)
     
     # sanity-check the significance‐aggregation parameter
     if (!sigSetting %in% c("average", "any", "majority", "strict")) {
@@ -137,31 +139,79 @@ batchMASSPRF_Chimera <-
       gamma2Color$logGamma <- allGammas
     }
     
-    cuts <- cut(
-      gamma2Color$gamma,
-      breaks = seq(min(allGammas), max(allGammas), length.out = numberOfColors),
-      include.lowest = TRUE
-    )
-    pal1 <- if (is.null(midHex)) {
-      colorRampPalette(c(blueHex, redHex))(numberOfColors - 1)
-    } else {
-      colorRampPalette(c(blueHex, midHex, redHex))(numberOfColors - 1)
-    }
-    gamma2Color$color <- pal1[as.integer(cuts)]
     
-    cutsLog <- cut(
-      gamma2Color$logGamma,
-      breaks = seq(min(gamma2Color$logGamma),
-                   max(gamma2Color$logGamma),
-                   length.out = numberOfColors),
+    # Number of color divisions per side
+    n_half <- ceiling(numberOfColors / 2)
+    
+    #  NEGATIVE SIDE (min to 0)
+    
+    gammaBreaks_neg <- seq(minGamma, 0, length.out = n_half)
+    gammaBreaks_neg[1] <- -Inf
+    palette_neg <- colorRampPalette(c(blueHex, midHex))(length(gammaBreaks_neg) - 1)
+    
+    #  POSITIVE SIDE (0 to max)
+    
+    gammaBreaks_pos <- seq(0, maxGamma, length.out = n_half)
+    gammaBreaks_pos[length(gammaBreaks_pos)] <- Inf
+    palette_pos <- colorRampPalette(c(midHex, redHex))(length(gammaBreaks_pos) - 1)
+    
+    # split gamma2Color
+    
+    gamma2Color_pos <- gamma2Color[gamma2Color$gamma > 0, ]
+    gamma2Color_neg <- gamma2Color[gamma2Color$gamma <= 0, ]
+    
+    # Assign colors based on gamma position
+    cuts_pos <- cut(
+      gamma2Color_pos$gamma,
+      breaks = gammaBreaks_pos,
       include.lowest = TRUE
     )
-    pal2 <- if (is.null(midHex)) {
-      colorRampPalette(c(blueHex, redHex))(numberOfColors - 1)
-    } else {
-      colorRampPalette(c(blueHex, midHex, redHex))(numberOfColors - 1)
-    }
-    gamma2Color$logColor <- pal2[as.integer(cutsLog)]
+    gamma2Color_pos$color <- palette_pos[as.integer(cuts_pos)]
+    
+    cuts_neg <- cut(
+      gamma2Color_neg$gamma,
+      breaks = gammaBreaks_neg,
+      include.lowest = TRUE
+    )
+    gamma2Color_neg$color <- palette_neg[as.integer(cuts_neg)]
+    
+    
+    ###Logpart
+    
+    # Define global min and max
+    minlogGamma <- log(abs(minGamma) , base = logT) * -1
+    maxlogGamma <- log(abs(maxGamma) , base = logT)
+    
+    #  NEGATIVE SIDE (min to 0)
+    
+    loggammaBreaks_neg <- seq(minlogGamma, 0, length.out = n_half)
+    loggammaBreaks_neg[1] <- -Inf
+    logpalette_neg <- colorRampPalette(c(blueHex, midHex))(length(loggammaBreaks_neg) - 1)
+    
+    #  POSITIVE SIDE (0 to max)
+    
+    loggammaBreaks_pos <- seq(0, maxlogGamma, length.out = n_half)
+    loggammaBreaks_pos[length(loggammaBreaks_pos)] <- Inf
+    logpalette_pos <- colorRampPalette(c(midHex, redHex))(length(loggammaBreaks_pos) - 1)
+    
+    # Assign colors based on gamma position
+    logcuts_pos <- cut(
+      gamma2Color_pos$logGamma,
+      breaks = loggammaBreaks_pos,
+      include.lowest = TRUE
+    )
+    gamma2Color_pos$logColor <- palette_pos[as.integer(logcuts_pos)]
+    
+    logcuts_neg <- cut(
+      gamma2Color_neg$logGamma,
+      breaks = loggammaBreaks_neg,
+      include.lowest = TRUE
+    )
+    gamma2Color_neg$logColor <- palette_neg[as.integer(logcuts_neg)]
+    
+    
+    gamma2Color <- rbind(gamma2Color_neg, gamma2Color_pos)
+    
     
     if (verbose) {
       plot(seq_len(G), gamma2Color$logGamma, col = gamma2Color$logColor,
@@ -339,6 +389,9 @@ batchMASSPRF_Chimera <-
     if(verbose) print("Done!")
   }
 
+
+
+
 # Example run
 batchMASSPRF_Chimera(
   designFile = "design.tsv",
@@ -347,5 +400,5 @@ batchMASSPRF_Chimera(
   bins       = 15,
   midColor   = c(240, 240, 240),
   ehColor    = c(0, 180, 0),
-  logT       = 2
+  logT       = 2,
 )
