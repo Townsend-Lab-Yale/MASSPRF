@@ -4,13 +4,16 @@
  * Input Parameter:
  * Output:
  ***************************************************/
-#include "PRFCluster.h"
-#include "kfunc.h"
-// --- NEW: standard headers for env / io / string ---
-#include <cstdlib>   // getenv, atoi, atof
-#include <iostream>  // std::cout
-#include <string>    // std::string
-#include <algorithm>
+#include "PRFCluster.h"  // own header first
+#include "kfunc.h"       // project header
+
+#include <vector>
+#include <algorithm>     // lower_bound
+#include <cmath>         // std::isfinite
+#include <cstdlib>       // std::rand, RAND_MAX
+#include <iostream>      // std::cout (if you print)
+#include <string>        // std::string (if used)
+
 
 #ifdef __linux__
 unsigned int NUM_CPU = get_nprocs_conf();
@@ -86,6 +89,7 @@ PRFCluster::PRFCluster() {
 	// --- NEW defaults for gap handling ---
     gap_policy    = 0;    // 0=skip any codon containing '-'
     gap_threshold = 0.5; // used only when gap_policy==2
+	non_genic_mode = 0;  // default off
 
 	NI_estimate=0;
 	scale_flag=0;
@@ -897,39 +901,56 @@ int PRFCluster::RunML(vector<string> pol_seq, vector<string> div_seq) {
 		Model_Number=10000;
 	}
 
-	pol_codon_consensus = getPolSysRep(pol_seq);
-	div_codon_consensus = getDivSysRep(pol_seq, div_seq);
-	long species_n=pol_seq.size();
+    long species_n = pol_seq.size();
 
-	if (input_format_num==1){
-		pol_codon_consensus = pol_seq[0];
-		div_codon_consensus = div_seq[0];
-		species_n=species_num;
-	}
+    // (1) If the user provided consensus sequences directly (input_format_num == 1),
+    // use them as consensus and skip rebuilding
+    if (input_format_num == 1) {
+        pol_codon_consensus = pol_seq[0];
+        div_codon_consensus = div_seq[0];
+        species_n = species_num;
+    }
+    // (2) Otherwise, generate consensus based on mode
+    else {
+        if (this->non_genic_mode) {
+            // Non-genic nucleotide mode: treat every base as nonsynonymous
+            pol_codon_consensus = getPolNonGenicRep(pol_seq);
+            div_codon_consensus = getDivNonGenicRep(pol_seq, div_seq);
+        } else {
+            // Default codon-based mode
+            pol_codon_consensus = getPolSysRep(pol_seq);
+            div_codon_consensus = getDivSysRep(pol_seq, div_seq);
+        }
+    }
 
-	cout<<"Polymorphism: "<<pol_codon_consensus<<endl;
-	cout<<"Divergence:   "<<div_codon_consensus<<endl;
-	cout<<endl;
-	if(flag_N_pol==1){
-		cout<<endl<<"*****************"<<endl;
-		cout<<"Note: Nucleotide other than A, T, G or C is in the polymorphism data sequences! Please see details in manual document."<<endl;
-		if(Nuc_replace==1){
-			cout<<"      It is substituted by the most frequent used nucleotide in polymorphism sequence at this site!"<<endl;
-		}else{
-			cout<<"      This codon is seen as gap!"<<endl;
-		}
-		cout<<"*****************"<<endl<<endl;
-	}
-	if(flag_N_div==1){
-		cout<<endl<<"*****************"<<endl;
-		cout<<"Note: Nucleotide other than A, T, G or C is in the divergence data sequence! Please see details in manual document."<<endl;
-		if(Nuc_replace==1){
-			cout<<"      It is substituted by the most frequent used nucleotide in polymorphism sequence at this site!"<<endl;
-		}else{
-			cout<<"      This codon is seen as gap!"<<endl;
-		}
-		cout<<"*****************"<<endl<<endl;
-	}
+    cout << "Polymorphism: " << pol_codon_consensus << endl;
+    cout << "Divergence:   " << div_codon_consensus << endl;
+    cout << endl;
+
+    // Display warnings for ambiguous bases (N or other IUPAC codes)
+    if (flag_N_pol == 1) {
+        cout << endl << "*****************" << endl;
+        cout << "Note: Nucleotide other than A, T, G, or C is in the polymorphism data sequences." << endl;
+        cout << "      Please refer to the manual for details." << endl;
+        if (Nuc_replace == 1) {
+            cout << "      It is replaced by the most frequent nucleotide in the polymorphism sequence at this site." << endl;
+        } else {
+            cout << "      This codon is treated as a gap." << endl;
+        }
+        cout << "*****************" << endl << endl;
+    }
+
+    if (flag_N_div == 1) {
+        cout << endl << "*****************" << endl;
+        cout << "Note: Nucleotide other than A, T, G, or C is in the divergence data sequences." << endl;
+        cout << "      Please refer to the manual for details." << endl;
+        if (Nuc_replace == 1) {
+            cout << "      It is replaced by the most frequent nucleotide in the polymorphism sequence at this site." << endl;
+        } else {
+            cout << "      This codon is treated as a gap." << endl;
+        }
+        cout << "*****************" << endl << endl;
+    }
 
 	//Print the #Div & #Pol
 	double ps=0.0;
@@ -950,17 +971,28 @@ int PRFCluster::RunML(vector<string> pol_seq, vector<string> div_seq) {
 	cout<<"DR: "<<dr<<endl;
 
 
-
 	if (mkt_mode == 1) {
-		ofstream mkt_file;
-		mkt_file.open("mkt_vals.txt", ios_base::app);
-		double mkt_alpha = 1.0 - (ds * pr)/(dr * ps);
-		double fisher_left_p, fisher_right_p, fisher_twosided_p;
-    	kt_fisher_exact(ds, ps, dr, pr, &fisher_left_p, &fisher_right_p, &fisher_twosided_p);
-		mkt_file << pol_seqfile << "\t" <<  ps << "\t" << pr << "\t" << ds << "\t" << dr << "\t" << mkt_alpha << "\t" << fisher_twosided_p <<  endl;
-		mkt_file.close();
-		return 0;
-	}
+    // Guard: in non-genic mode or zero counts, skip/NA to avoid divide-by-zero
+    if (this->non_genic_mode || ps==0.0 || ds==0.0 || dr==0.0 || pr==0.0) {
+        ofstream mkt_file;
+        mkt_file.open("mkt_vals.txt", ios_base::app);
+        mkt_file << pol_seqfile << "\t" <<  ps << "\t" << pr << "\t"
+                 << ds << "\t" << dr << "\tNA\tNA" << endl;
+        mkt_file.close();
+        return 0;
+    }
+
+    ofstream mkt_file;
+    mkt_file.open("mkt_vals.txt", ios_base::app);
+    double mkt_alpha = 1.0 - (ds * pr)/(dr * ps);
+    double fisher_left_p, fisher_right_p, fisher_twosided_p;
+    kt_fisher_exact(ds, ps, dr, pr, &fisher_left_p, &fisher_right_p, &fisher_twosided_p);
+    mkt_file << pol_seqfile << "\t" <<  ps << "\t" << pr << "\t" << ds << "\t"
+             << dr << "\t" << mkt_alpha << "\t" << fisher_twosided_p <<  endl;
+    mkt_file.close();
+    return 0;
+}
+
 
 	if(scale_flag == 1 && scale_factor==1){
 		scale_factor = scaleFactor(pol_codon_consensus.length());
@@ -1033,7 +1065,7 @@ int PRFCluster::RunML(vector<string> pol_seq, vector<string> div_seq) {
 	struct SiteModels rep_pol[10000];
 	if (N>10000) { cout<<"The length of the gene exceeds 10000, Revise the SiteModels upper-boundary array size!"<<endl; throw 1;}
 
-	if(Sys_cluster==1){
+	if(Sys_cluster==1 && !this->non_genic_mode && ps>1){
 		//Initialize for PS
 		vec_SelectedModels.clear();
 		vec_MS_rate.clear();
@@ -1150,7 +1182,7 @@ int PRFCluster::RunML(vector<string> pol_seq, vector<string> div_seq) {
 	struct SiteModels sm_div[10000];
 	struct SiteModels rep_div[10000];
 	if (N>10000) { cout<<"The length of the gene exceeds 10000, Revise the SiteModels upper-boundary array size!"<<endl; throw 1;}
-	if(Sys_cluster==1){
+	if(Sys_cluster==1 && !this->non_genic_mode && ds>1){
 		//Initialize for DS
 		vec_SelectedModels.clear();
 		vec_MS_rate.clear();
@@ -1335,14 +1367,17 @@ int PRFCluster::RunML(vector<string> pol_seq, vector<string> div_seq) {
 		cout<<"*************"<<endl;
 	}
 
-	if(MS_only==0 && Sys_cluster==1 && NI_estimate==1){
-		SiteNI(N);
-	}else{
-		NI_estimate=0;
-		cout<<endl<<"**************"<<endl;
-		cout<<"Warning: "<<endl<<"For estimating Neutrality Index (NI), model-averaging and synonymous cluster will be needed. Please set '-s 1 -m 0 -NI 1'. "<<endl;
-		cout<<"*************"<<endl;
-	}
+    if (MS_only==0 && Sys_cluster==1 && NI_estimate==1 && !this->non_genic_mode) {
+    // Run Neutrality Index estimation only in genic (codon) mode
+    SiteNI(N);
+    }else{
+        NI_estimate = 0;
+        cout << endl << "**************" << endl;
+        cout << "Warning:" << endl
+             << "For estimating Neutrality Index (NI), model-averaging and synonymous clustering are required." << endl
+             << "Please set '-s 1 -m 0 -NI 1' and do not use '-NG 1' (non-genic mode)." << endl;
+        cout << "**************" << endl;
+    }
 	time_t t_endBeforeOutput = time(NULL)-time_startRunML;
 	h=t_endBeforeOutput/3600, m=(t_endBeforeOutput%3600)/60, s=t_endBeforeOutput-(t_endBeforeOutput/60)*60;
 	cout<<"Before Output (Total Time elapsed: ";
@@ -1912,6 +1947,127 @@ string PRFCluster::getDivSysRep(vector<string> pol, vector<string> div) {
     }
 
     return cons_seq;
+}
+
+// --- helper: majority base at a nucleotide site ---
+// Returns the single clear majority base among A/T/G/C at site i across seqs.
+// If there is no base or there is a tie, returns '\0' to indicate "unresolved".
+static inline char majority_base_nt(const std::vector<std::string>& seqs, long i) {
+    int cA=0,cT=0,cG=0,cC=0;
+    for (const auto& s: seqs) {
+        if (i >= (long)s.size()) continue;
+        char b = s[i];
+        if      (b=='A') ++cA;
+        else if (b=='T') ++cT;
+        else if (b=='G') ++cG;
+        else if (b=='C') ++cC;
+    }
+    int mx = std::max(std::max(cA,cT), std::max(cG,cC));
+    int winners = (cA==mx) + (cT==mx) + (cG==mx) + (cC==mx);
+    if (mx==0 || winners!=1) return '\0';
+    if (cA==mx) return 'A';
+    if (cT==mx) return 'T';
+    if (cG==mx) return 'G';
+    return 'C';
+}
+
+string PRFCluster::getPolNonGenicRep(vector<string> seq) {
+    long L = seq[0].length();
+    string cons; cons.reserve(L);
+
+    for (long i=0; i<L; ++i) {
+        bool any_gap=false, any_nonATGC=false;
+        for (auto& s: seq) {
+            char b=s[i];
+            if (b=='-') any_gap=true;
+            else if (!(b=='A'||b=='T'||b=='G'||b=='C')) any_nonATGC=true;
+        }
+        if (any_nonATGC) flag_N_pol = 1;
+
+        // GAP policy (consistent with current program semantics):
+        // gap_policy==0 -> mask site if any gap present
+        // gap_policy==1 -> require >=2 non-gap sequences
+        // gap_policy==2 -> same as (1) plus global gap fraction threshold check
+        if (any_gap) {
+            if (gap_policy==0) { cons.push_back('*'); continue; }
+            int gap_free=0; for (auto& s: seq) if (s[i]!='-') ++gap_free;
+            double gap_frac = 1.0 - (double)gap_free / (double)seq.size();
+            bool mask = (gap_policy==1) ? (gap_free<2)
+                                        : ((gap_frac>gap_threshold) || (gap_free<2));
+            if (mask) { cons.push_back('*'); continue; }
+        }
+
+        // IUPAC/N handling:
+        // Nuc_replace==0 -> mask sites with any ambiguous base
+        if (Nuc_replace==0 && any_nonATGC) { cons.push_back('*'); continue; }
+
+        // Majority replacement for -N 1/2:
+        // compute clear majority base; if none, mask
+        char maj = (Nuc_replace==1 || Nuc_replace==2) ? majority_base_nt(seq, i) : '\0';
+        if ((Nuc_replace==1 || Nuc_replace==2) && maj=='\0') { cons.push_back('*'); continue; }
+
+        std::vector<char> bases; bases.reserve(seq.size());
+        for (auto& s: seq) {
+            char b=s[i];
+            if (b=='-') continue;
+            if (b=='A'||b=='T'||b=='G'||b=='C') bases.push_back(b);
+            else if (Nuc_replace==1 || Nuc_replace==2) bases.push_back(maj);
+        }
+        if (bases.empty()) { cons.push_back('*'); continue; }
+
+        bool same=true; for (size_t k=1;k<bases.size();++k) if (bases[k]!=bases[0]) { same=false; break; }
+        cons.push_back(same ? '*' : 'R'); 
+        // Non-genic mode: if there is within-species variation at this site, mark as 'R'; otherwise '*'
+    }
+    return cons;
+}
+
+string PRFCluster::getDivNonGenicRep(vector<string> pol, vector<string> div) {
+    long L = pol[0].length();
+    string cons; cons.reserve(L);
+
+    auto gap_mask = [&](const vector<string>& seqs, long i)->bool{
+        // Return true if site i should be masked due to gaps under the configured gap_policy.
+        int gap_free=0; bool any_gap=false;
+        for (auto& s: seqs) { if (s[i]=='-') any_gap=true; else ++gap_free; }
+        if (!any_gap) return false;
+        if (gap_policy==0) return true;
+        double gap_frac = 1.0 - (double)gap_free / (double)seqs.size();
+        return (gap_policy==1) ? (gap_free<2)
+                               : ((gap_frac>gap_threshold) || (gap_free<2));
+    };
+
+    for (long i=0; i<L; ++i) {
+        // Skip within-species polymorphic sites (as in original logic, do not count divergence on polymorphic positions)
+        bool poly=false;
+        {
+            char maj = (Nuc_replace==1 || Nuc_replace==2) ? majority_base_nt(pol, i) : '\0';
+            if ((Nuc_replace==1 || Nuc_replace==2) && maj=='\0') poly=true;
+            else {
+                std::vector<char> bases;
+                for (auto& s: pol) {
+                    char b=s[i];
+                    if (b=='-') continue;
+                    if (b=='A'||b=='T'||b=='G'||b=='C') bases.push_back(b);
+                    else if (Nuc_replace==1 || Nuc_replace==2) bases.push_back(maj);
+                    else { poly=true; break; }
+                }
+                if (!poly) for (size_t k=1;k<bases.size();++k)
+                    if (bases[k]!=bases[0]) { poly=true; break; }
+            }
+        }
+        if (poly) { cons.push_back('*'); continue; }
+
+        if (gap_mask(pol,i) || gap_mask(div,i)) { cons.push_back('*'); continue; }
+
+        char pb = majority_base_nt(pol, i);
+        char db = majority_base_nt(div, i);
+        if (pb=='\0' || db=='\0') { cons.push_back('*'); continue; }
+
+        cons.push_back( (pb==db) ? '*' : 'R' ); 
+        // Between-species difference -> 'R'; otherwise mask '*'
+    }
+    return cons;
 }
 
 int PRFCluster::scaleFactor(int length) {
@@ -2784,55 +2940,82 @@ void PRFCluster::Time(int time_start) {
 }
 
 /***************************************************
- * Function: Get a random model by choosing a value from 0 to 1, and select the clustering model for p with the weight above the random value;
- * Function: create a partial summed weight models first, then find the model with the weight according to the random number by NumberOfModels/2
- * Input Parameter: SiteModels; site
- * Output:model_num
- * Return Value: model_num
+ * Purpose:
+ *   Build the cumulative weight vector (CDF) for all models
+ *   at a given site. The caller uses this CDF for inverse-CDF
+ *   sampling when selecting a model.
+ *
+ * Method:
+ *   Compute cumulative sums of CI::weight across p[site].sms and
+ *   normalize so the last element equals 1.0 (non-decreasing CDF).
+ *
+ * Inputs:
+ *   p    - pointer to SiteModels array
+ *   site - site index (0-based)
+ *
+ * Returns:
+ *   std::vector<double>  // cumulative weights (CDF), non-decreasing, tail == 1.0
  ***************************************************/
+
 vector<double> PRFCluster::RandomModel_NumFastInit(struct SiteModels *p,long site) {
-	int pss = p[site].sms.size();
-	CI *cip = &(p[site].sms[0]);
-	vector<double> tempWeightSums;
-	tempWeightSums.push_back(cip->weight);
-	++cip;
-	for(long i = 1; i < pss; ++i, ++cip) {
-		//if (cip->weight == 0.0) cerr << "null weight " << site << " " << i << endl;
-		tempWeightSums.push_back(tempWeightSums[i-1] + cip->weight);
-	}
-	return (tempWeightSums);
+    const int pss = static_cast<int>(p[site].sms.size());
+    CI *cip = &(p[site].sms[0]);
+
+    std::vector<double> tempWeightSums;
+    tempWeightSums.reserve(pss);
+
+    // Build cumulative weights (unchanged logic).
+    tempWeightSums.push_back(static_cast<double>(cip->weight));
+    ++cip;
+    for (int i = 1; i < pss; ++i, ++cip) {
+        tempWeightSums.push_back(tempWeightSums[i-1] + static_cast<double>(cip->weight));
+    }
+
+    // Normalize to a proper CDF without changing relative weights:
+    //  - scale so the last value equals 1.0
+    //  - enforce non-decreasing monotonicity (guards rare FP glitches)
+    const double S = !tempWeightSums.empty() ? tempWeightSums.back() : 0.0;
+    if (S > 0.0 && std::isfinite(S)) {
+        for (double &x : tempWeightSums) x /= S;
+        for (size_t i = 1; i < tempWeightSums.size(); ++i) {
+            if (tempWeightSums[i] < tempWeightSums[i-1]) tempWeightSums[i] = tempWeightSums[i-1];
+        }
+        tempWeightSums.back() = 1.0; // make tail exactly 1.0
+    } else {
+        // S <= 0 or not finite indicates upstream weight issues.
+        // Keep existing error handling outside this function; do not change semantics here.
+    }
+
+    return tempWeightSums;
 }
 
+
 /***************************************************
- * Function:
- * Input Parameter:
- * Output:
+ * Purpose:
+ *   Select a model index via inverse-CDF sampling using the CDF
+ *   built by RandomModel_NumFastInit.
+ *
+ * Method:
+ *   Draw u in [0,1) and return the smallest index i such that
+ *   CDF[i] >= u. This preserves the intended weight distribution.
+ *
+ * Inputs:
+ *   pWeightSums - cumulative weight vector (non-decreasing, tail == 1.0)
+ *
+ * Returns:
+ *   long  // selected model index (0-based)
  ***************************************************/
-long PRFCluster::RandomModel_NumFast(vector <double> &pWeightSums){
-	double rand_tmp=rand();
-	//RAND_MAX is from system (2147483647)
-	double rand_num=rand_tmp/RAND_MAX;
-	if(rand_num<=pWeightSums[0]){
-		return 0;
-	}
-	long lo = 0, hi = pWeightSums.size();
-	long mid = (lo + hi)/2, nmid;
-	while (1) {
-		if (pWeightSums[mid] > rand_num)
-			hi = mid;
-		else
-			lo = mid;
-		nmid = (lo + hi)/2;
-		if (mid == nmid) break;
-		mid = nmid;
-	}
-	//cerr << "blew fast model num " << lo << "  " << hi <<  " " << rand_num << ": " << pWeightSums[lo] << " " << pWeightSums[hi] << endl;
-	// not exactly the same condition as the original (which i believe is a little broken).
-	if(!(hi == 0 || (pWeightSums[hi-1] <= rand_num && rand_num <= pWeightSums[hi]))) {
-		cerr << "blew fast model num " << lo << "  " << hi <<  " " << rand_num << ": " << pWeightSums[lo] << " " << pWeightSums[hi-1] << " " << pWeightSums[hi] << endl;
-		exit(1);
-	}
-	return(hi);
+long PRFCluster::RandomModel_NumFast(std::vector<double> &pWeightSums) {
+    // Draw u in [0,1): strictly less than 1.0 to avoid "no bucket" edge cases.
+    const double u = (std::rand() + 0.5) / (RAND_MAX + 1.0);
+
+    // Standard inverse-CDF sampling: first CDF entry >= u.
+    auto it = std::lower_bound(pWeightSums.begin(), pWeightSums.end(), u);
+    if (it == pWeightSums.end()) {
+        // Should not happen if tail == 1.0 and u < 1.0; return last bucket as a safe guard.
+        return static_cast<long>(pWeightSums.size() - 1);
+    }
+    return static_cast<long>(std::distance(pWeightSums.begin(), it));
 }
 
 /***************************************************
@@ -3623,6 +3806,17 @@ bool PRFCluster::parseParameter(int argc, const char* argv[]) {
                     }
                 }
 
+                // Enable non-genic nucleotide mode
+                else if (temp=="-NG" && (i+1)<argc) {
+                    int v = CONVERT<int>(argv[++i]);
+                    if (v==0 || v==1) {
+                        this->non_genic_mode = v;
+                    } else {
+                        cout << "Error! -NG should be 0 or 1!\n";
+                        throw 1;
+                    }
+                }
+
 				//verbose output or concise
 				else if(temp=="-V" && (i+1)<argc && verbose_flag==0){
 					int num=CONVERT<int>(argv[++i]);
@@ -3731,6 +3925,11 @@ void PRFCluster::showHelpInfo() {
     cout << "      \t{0: treat as gap || 1: replace with most frequent base}, default=0" << endl;
     cout << "      \tNote: Default changed in v1.32 (2025). Previously default=1, now default=0." << endl;
     cout << "      \tRecommendation: Use `1` to maintain sequence integrity when ambiguous bases are common." << endl;
+	
+	cout << "  -ng\tNon-genic nucleotide mode [0/1, optional], default=0" << endl;
+    cout << "      \tIf 1: treat every base as nonsynonymous (disable codon/synonymous logic)." << endl;
+	cout << "      \tNote: In -ng 1, PS/DS=0 by design and NI is not applicable." << endl;
+
 
     cout << "  GAP POLICY & ENVIRONMENT VARIABLES:" << endl;
     cout << "      gap_policy (advanced handling of codons with gaps '-'): " << endl;
