@@ -196,6 +196,12 @@ class PRFCluster: public Base {
   int flag_N_div;
   string getPolSysRep(vector<string> seq);
   string getDivSysRep(vector<string> pol, vector<string> div);
+  // --- New: non-genic nucleotide mode ---
+  int non_genic_mode;  // 0 = off (default), 1 = on
+
+  // nucleotide-level consensus (every difference => 'R'; no synonymous)
+  std::string getPolNonGenicRep(std::vector<std::string> seq);
+  std::string getDivNonGenicRep(std::vector<std::string> pol, std::vector<std::string> div);
   
   //Consider the sites other than A, T, G or C 
   int ReplaceCodon4PolSys(vector <string>& codon, vector <string>& codon_other);
@@ -381,5 +387,6 @@ class PRFCluster: public Base {
 };
 
 #endif
+
 
 
