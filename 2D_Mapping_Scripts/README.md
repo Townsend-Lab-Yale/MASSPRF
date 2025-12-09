@@ -2,6 +2,40 @@
 
 ## 2D Processing: MASS-PRF Output → CSV, Site Lists, and Plots
 
+
+## 2D Update Notes (2025-12-09)
+
+> Paste this block at the very beginning of your existing section  
+> “2D Processing: MASS-PRF Output → CSV, Site Lists, and Plots”.
+
+### New flags
+
+- `--non_genic`: For output generated with `-ng 1` (non-genic runs).  
+  The script will automatically skip any panels and statistics that require PS/DS, and keep only Gamma + CI plots and site lists.
+
+- `--scale <k>`: Manually set the scaling factor when MASS-PRF output does not contain scaling information  
+  (for example, if the upstream “Scaled size: …” line is missing).
+
+### More robust parsing
+
+- Table detection now uses an “anchor + fallback” strategy instead of strict string matching.
+- The “Mission accomplished.” marker and table boundaries are treated more flexibly, so the script is less likely to mis-detect regions.
+- When no scaling information is found, the script now defaults to `--scale 1` and continues, instead of stopping with  
+  “Scaling factor not found”.
+
+### Standardized position expansion
+
+- When scaling is detected, the script expands rows to a base-by-base 1..N grid, so positions match 3D coloring.
+- When no scaling is present, positions are treated 1:1.
+
+### Backward compatibility
+
+- If you do not use the new flags, behavior is the same as in previous versions.
+- File naming and output structure (CSV / site lists / PDF) are unchanged.
+
+
+
+
 ## 2D Usage 
 
 ### 1) Prepare inputs
@@ -116,3 +150,4 @@ pip install pandas matplotlib numpy
 ## Acknowledgment
 
 We thank **Dr. Hayley Hassler** for foundational 2D visualization scripts that inspired this tool.
+
