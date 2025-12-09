@@ -1,10 +1,72 @@
 # MASS-PRF: Model Averaged Site Selection via Poisson Random Field 
-Updated in 2025/9/19 by Yide Jin
+Updated in 2025/12/9 by Yide Jin
 
 ## Overview
 MASS-PRF is a computational tool designed to detect regional variation in selection intensity within protein-coding genes using DNA sequence polymorphism and divergence data. This repository includes the program, preprocessing scripts, and a pipeline for genome-wide analysis.
 
 ---
+## Updates in Version 2.0 (December 9, 2025)
+
+- **Non-genic support — `-ng 1` (default 0)**
+  - **What it does**
+    - Turns on per-nucleotide mode for non-coding regions (intergenic / intronic / UTR).
+    - Disables codon / synonymous logic.
+  - **Output changes (by design)**
+    - Every variable nucleotide site is counted as replacement (R).
+    - PS/DS (synonymous polymorphism/divergence) are not computed → effectively PS = 0 and DS = 0.
+    - MKT and NI are skipped (reported as NA) because S = 0 makes them undefined.
+    - PR/DR and Gamma are still computed as usual.
+  - **Backwards compatibility**
+    - With `-ng 0` (the default), behavior is unchanged.
+  - **Flag interactions**
+    - `-s 1` and `-ssd` have no effect in `-ng 1` (no synonymous sites / clusters); they are ignored safely.
+    - Provide a species divergence time from coding runs (or an external estimate) with `-t <div_time>` (same as `Div_time`).
+      - This matches the two-step workflow Jeff requested: estimate `dt` in coding → reuse in non-genic.
+  - **Ambiguous bases & gaps (same knobs as before)**
+    - `-n 0/1/2` (ambiguous base handling):
+      - `0` — treat non-ATGC as missing at that site (skip). *(default)*
+      - `1` — replace ambiguous bases by the site majority (A/T/G/C).
+      - `2` — replace both gaps and ambiguous bases by the site majority  
+        (equivalent to enabling a majority rule for gaps; internally aligns with `gap_policy = 2`).
+  - **Gap handling (unchanged behavior)**
+    - Default behavior matches previous releases.
+    - You can optionally override via environment variables:
+      ```bash
+      export GAP_POLICY=0|1|2    # 0=skip site if any gap; 1=keep site with ≥2 gap-free seqs; 2=majority rule with threshold
+      export GAP_THRESHOLD=0.5   # used only when GAP_POLICY=2
+      ```
+    - On startup, MASS-PRF prints the active settings, e.g. `[GAP] policy=2 threshold=0.7`.
+  - **Recommended for non-genic**
+    - `-o 1` → nucleotide-level output.
+    - `-t <dt>` → pass the divergence time estimated from coding CDS.
+  - **Examples**
+    ```bash
+    # Coding run (unchanged)
+    massprf -p pol.fasta -d div.fasta -s 1 -m 0 -o 1
+
+    # Non-genic run (per-nucleotide, reuse dt from coding)
+    massprf -p pol_ng.fasta -d div_ng.fasta -ng 1 -n 1 -t 3.2 -o 1
+    ```
+
+- **Stability fix (no change to results)**
+  - **What was fixed**
+    - Rare runs could crash with:
+      ```text
+      blew fast model num ... 0.999193
+      ```
+    - This came from a floating-point edge case when drawing models by the cumulative weights (inverse-CDF sampling).
+  - **What we changed (implementation detail)**
+    - Normalize the cumulative weights so the last entry is exactly `1.0` (valid CDF).
+    - Draw the random number `u` in `[0,1)` and select with a standard `lower_bound` search.
+  - **Why this is safe**
+    - This is the textbook inverse-CDF method.
+    - It does **not** change model probabilities or downstream estimates.
+    - It only removes the boundary crash; behavior is otherwise identical and default pipelines are unaffected.
+  - **2D script notes (compatibility)**
+    - 2D now accepts the scaling factor from MASS-PRF header lines (e.g. `Scaling by supplied factor of 3 / Scaled size: …`) **or** via CLI `--scale <k>`.
+    - Added a `--non_genic` switch so PS/DS-based panels are skipped when input comes from `-ng 1`.
+    - If you don’t use `-ng 1`, you don’t need any new flags—plots match the old behavior.
+
 
 ## Updates in Version 1.32 (September 19, 2025)
 
