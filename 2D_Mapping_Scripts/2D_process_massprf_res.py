@@ -1,9 +1,9 @@
-# Updated 2025-10-15 by Yide Jin
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
 import os
 import re
+import argparse
 from os.path import isfile, join
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -65,15 +65,31 @@ def parse_table(lines):
     return df
 
 def extract_scaling(lines):
-    """Infer scaling factor from MASS-PRF text. Defaults to 1 if not found."""
+    """Infer scaling factor from MASS-PRF text. Defaults to 1 if not found.
+    Supports legacy 'Scaling factor: X' and new 'Scaling by supplied factor of X'.
+    """
     scaling = None
     for ln in lines:
+        # New format
         if "Scaling by supplied factor of" in ln:
             try:
-                scaling = int(ln.split("Scaling by supplied factor of")[-1].strip())
+                val = ln.split("Scaling by supplied factor of")[-1].strip()
+                m = re.findall(r"\d+", val)
+                if m:
+                    scaling = int(m[0])
+                continue
             except Exception:
                 pass
-        elif "No Scaling requested" in ln:
+        # Legacy format
+        m = re.search(r"Scaling\s*factor\s*:\s*(\d+)", ln)
+        if m:
+            try:
+                scaling = int(m.group(1))
+                continue
+            except Exception:
+                pass
+        # Explicit no-scaling
+        if "No Scaling requested" in ln:
             scaling = 1
     if scaling is None:
         # default to 1 but don't crash
@@ -108,11 +124,23 @@ def write_lists(proc_dir, neg_l, pos_l, str_pos_l, boring_l, failed_l):
     with open(join(proc_dir, "Failed_genes.txt"), "w") as f:
         f.write('\n'.join(failed_l) + '\n')
 
+def parse_args():
+    p = argparse.ArgumentParser(
+        description="Process MASS-PRF outputs into per-NT CSV/site-lists/plots."
+    )
+    p.add_argument(
+        "--ng", action="store_true",
+        help="Non-genic mode: treat input as per-nucleotide; force scaling=1; set x-axis label to 'nucleotide position'."
+    )
+    return p.parse_args()
+
 # -------------------------
 # Main
 # -------------------------
 
 def main():
+    args = parse_args()
+
     wd = os.getcwd()
     file_list = [f for f in os.listdir(wd) if isfile(join(wd, f)) and f.lower().endswith(".txt")]
 
@@ -141,7 +169,7 @@ def main():
             table = parse_table(lines)
 
             # Scaling: expand to per-nucleotide to unify downstream
-            scaling = extract_scaling(lines)
+            scaling = 1 if args.ng else extract_scaling(lines)
             sel_df = descale_to_nt(table, scaling)
 
             # Significance filters (same as before)
@@ -172,7 +200,6 @@ def main():
 
             # Plot
             try:
-                import numpy as np
                 x = sel_df['Position'].to_numpy(dtype=float)
                 y = sel_df['Gamma'].to_numpy(dtype=float)
                 ylo = sel_df['Lower_CI_Gamma'].to_numpy(dtype=float)
@@ -180,7 +207,7 @@ def main():
                 plt.plot(x, y)
                 plt.fill_between(x, ylo, yhi, alpha=0.2)
                 plt.axhline(y=0, color='black', linestyle='-')
-                plt.xlabel('position')  # generic label for NT or AA
+                plt.xlabel('nucleotide position' if args.ng else 'position')  # generic label for NT or AA
                 plt.ylabel('Scaled selection coefficient (gamma)')
                 plt.savefig(join(plot_dir, f"{gene_name}.pdf"))
                 plt.close()
