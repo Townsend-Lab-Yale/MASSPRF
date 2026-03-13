@@ -131,13 +131,14 @@ MASSPRF/
 ├── PRFCluster.cpp / PRFCluster.h        # Core clustering and ML engine
 ├── base.cpp / base.h                    # Sequence utilities
 ├── kfunc.cpp / kfunc.h                  # Mathematical functions (gamma, beta)
-├── LookupTable_*.dat                    # Pre-computed lookup tables (required at runtime)
 ├── Attacin-C_DmDs_pol.fas               # Example: polymorphism data (Drosophila)
 ├── Attacin-C_DmDs_div.fas               # Example: divergence data (Drosophila)
 ├── FZF1_yeast_pol.fas / _div.fas        # Example: yeast FZF1 gene
 ├── PanI_cod_pol.fas / _div.fas          # Example: Atlantic cod PanI gene
 ├── Pol_all_YIR024C.fas / Div_Spar_*.fas # Example: yeast YIR024C gene
-└── bin/                                 # Compiled binary goes here
+└── bin/
+    ├── LookupTable_*.dat                # Pre-computed lookup tables (required at runtime)
+    └── massprf                          # Compiled binary (generated during installation)
 ```
 
 > The four `LookupTable_*.dat` files must remain in the same directory as the binary, or be accessible from the working directory when you run MASS-PRF.

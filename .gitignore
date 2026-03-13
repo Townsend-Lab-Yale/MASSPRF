@@ -1,0 +1,9 @@
+# Compiled binary (platform-specific; users should compile from source)
+bin/massprf
+
+# macOS debug symbol bundles
+*.dSYM/
+
+# Common build artifacts
+*.o
+*.out
