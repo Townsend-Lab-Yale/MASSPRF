@@ -1,6 +1,7 @@
 # MASS-PRF
 
-**MASS-PRF** (Model Averaged Site Selection via Poisson Random Field) infers and quantifies natural selection across regions within a coding gene. It jointly analyzes within-species polymorphism and between-species divergence data to estimate site-specific selection coefficients using a maximum likelihood clustering framework.
+**MASS-PRF** (Model Averaged Site Selection via Poisson Random Field) provides a fine-scale framework for quantifying natural selection across a protein-coding gene. Instead of summarizing selection with a single gene-level estimate, it uses within-species polymorphism together with between-species divergence to infer how selection strength changes from site to site and across localized regions. Through a likelihood-based clustering procedure, MASS-PRF identifies groups of adjacent sites that share similar evolutionary patterns, without requiring prior assumptions about where selected regions begin or end. These clustered signals are then integrated under a Poisson Random Field model to estimate site-specific population-scaled selection coefficients (
+𝛾 and their uncertainty. As a result, the method is particularly useful for revealing regional heterogeneity in selection and for connecting evolutionary inference to biological function, especially when selection is concentrated in specific domains rather than spread uniformly across the gene.
 
 **Version:** 1.31 | **Last Updated:** January 30th, 2025
 **License:** Creative Commons CC BY-NC
