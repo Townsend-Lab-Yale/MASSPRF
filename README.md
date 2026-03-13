@@ -1,240 +1,510 @@
-# MASS-PRF: Model Averaged Site Selection via Poisson Random Field 
-Updated in 2025/12/9 by Yide Jin
+# MASS-PRF
 
-## Overview
-MASS-PRF is a computational tool designed to detect regional variation in selection intensity within protein-coding genes using DNA sequence polymorphism and divergence data. This repository includes the program, preprocessing scripts, and a pipeline for genome-wide analysis.
+**MASS-PRF** (McDonald and Kreitman with Simultaneous Synonymous-to-Replacement rate estimation) infers and quantifies natural selection across regions within a coding gene. It jointly analyzes within-species polymorphism and between-species divergence data to estimate site-specific selection coefficients using a maximum likelihood clustering framework.
 
----
-## Updates in Version 2.0 (December 9, 2025)
+**Version:** 1.31 | **Last Updated:** January 30th, 2025
+**License:** Creative Commons CC BY-NC
+**Reference:** Zi-Ming Zhao, Ning Li, Zhang Zhang and Jeffrey P. Townsend. (2016) Regions within coding gene sequences experience diverse intensities of natural selection inferred from polymorphism and divergence. *G3: Genes, Genomes, Genetics.*
 
-- **Non-genic support — `-ng 1` (default 0)**
-  - **What it does**
-    - Turns on per-nucleotide mode for non-coding regions (intergenic / intronic / UTR).
-    - Disables codon / synonymous logic.
-  - **Output changes (by design)**
-    - Every variable nucleotide site is counted as replacement (R).
-    - PS/DS (synonymous polymorphism/divergence) are not computed → effectively PS = 0 and DS = 0.
-    - MKT and NI are skipped (reported as NA) because S = 0 makes them undefined.
-    - PR/DR and Gamma are still computed as usual.
-  - **Backwards compatibility**
-    - With `-ng 0` (the default), behavior is unchanged.
-  - **Flag interactions**
-    - `-s 1` and `-ssd` have no effect in `-ng 1` (no synonymous sites / clusters); they are ignored safely.
-    - Provide a species divergence time from coding runs (or an external estimate) with `-t <div_time>` (same as `Div_time`).
-      - This matches the two-step workflow Jeff requested: estimate `dt` in coding → reuse in non-genic.
-  - **Ambiguous bases & gaps (same knobs as before)**
-    - `-n 0/1/2` (ambiguous base handling):
-      - `0` — treat non-ATGC as missing at that site (skip). *(default)*
-      - `1` — replace ambiguous bases by the site majority (A/T/G/C).
-      - `2` — replace both gaps and ambiguous bases by the site majority  
-        (equivalent to enabling a majority rule for gaps; internally aligns with `gap_policy = 2`).
-  - **Gap handling (unchanged behavior)**
-    - Default behavior matches previous releases.
-    - You can optionally override via environment variables:
-      ```bash
-      export GAP_POLICY=0|1|2    # 0=skip site if any gap; 1=keep site with ≥2 gap-free seqs; 2=majority rule with threshold
-      export GAP_THRESHOLD=0.5   # used only when GAP_POLICY=2
-      ```
-    - On startup, MASS-PRF prints the active settings, e.g. `[GAP] policy=2 threshold=0.7`.
-  - **Recommended for non-genic**
-    - `-o 1` → nucleotide-level output.
-    - `-t <dt>` → pass the divergence time estimated from coding CDS.
-  - **Examples**
-    ```bash
-    # Coding run (unchanged)
-    massprf -p pol.fasta -d div.fasta -s 1 -m 0 -o 1
-
-    # Non-genic run (per-nucleotide, reuse dt from coding)
-    massprf -p pol_ng.fasta -d div_ng.fasta -ng 1 -n 1 -t 3.2 -o 1
-    ```
-
-- **Stability fix (no change to results)**
-  - **What was fixed**
-    - Rare runs could crash with:
-      ```text
-      blew fast model num ... 0.999193
-      ```
-    - This came from a floating-point edge case when drawing models by the cumulative weights (inverse-CDF sampling).
-  - **What we changed (implementation detail)**
-    - Normalize the cumulative weights so the last entry is exactly `1.0` (valid CDF).
-    - Draw the random number `u` in `[0,1)` and select with a standard `lower_bound` search.
-  - **Why this is safe**
-    - This is the textbook inverse-CDF method.
-    - It does **not** change model probabilities or downstream estimates.
-    - It only removes the boundary crash; behavior is otherwise identical and default pipelines are unaffected.
-  - **2D script notes (compatibility)**
-    - 2D now accepts the scaling factor from MASS-PRF header lines (e.g. `Scaling by supplied factor of 3 / Scaled size: …`) **or** via CLI `--scale <k>`.
-    - Added a `--non_genic` switch so PS/DS-based panels are skipped when input comes from `-ng 1`.
-    - If you don’t use `-ng 1`, you don’t need any new flags—plots match the old behavior.
-
-
-## Updates in Version 1.32 (September 19, 2025)
-
-- **New gap-handling controls**
-  - `gap_policy` (controls how alignment gaps “–” are treated at each **site**):
-    - `0` — **Skip gapped sites** (default): if any sequence has a gap at the site, the site is excluded from analysis.  
-    - `1` — **Keep site, drop gapped sequences**: analyze the site using only sequences without a gap at that position (**requires ≥ 2 sequences with valid nucleotides**).  
-    - `2` — **Majority-rule replacement**: replace gaps using the consensus nucleotide **only if** the non-gap majority at the site is ≥ `gap_threshold`; otherwise exclude the site.
-  - `gap_threshold` (float, default `0.5`): used **only** when `gap_policy = 2`; sets the required non-gap majority fraction for replacement.
-  - Both settings can be provided via environment variables:
-    ```bash
-    export GAP_POLICY=2 GAP_THRESHOLD=0.7
-    ```
-  - On startup the program now reports the active settings, e.g. `[GAP] policy=2 threshold=0.7`.
-
-- **Revised default for `-n` (ambiguous bases)**
-  - **Old default:** `-n 1` (replace ambiguous, non-ATGC nucleotides).  
-  - **New default:** `-n 0` (treat ambiguous nucleotides as missing; exclude the site).  
-  - If ambiguous bases are common and you wish to impute them, specify `-n 1` (majority replacement) or `-n 2` (apply the same majority rule to **both** ambiguous bases **and** gaps, equivalent to `gap_policy = 2` for gaps).
-
-- **Performance**
-  - Automatic CPU core detection (`NUM_CPU`) enables faster parallel execution across platforms.
-
-
-## Pipeline Overview
-
-- **This stage (MASS-PRF core):**  
-  Run `massprf` per gene/region to produce plain-text results (`*.txt`).  
-  Core options such as `gap_policy`, `gap_threshold`, and the default `-n 0` affect which sites/codons contribute to the results table.
-
-- **Downstream (2D processing):**  
-  - Read `*.txt` and confirm the run finished successfully  
-  - Parse the results table  
-  - Expand to per-nucleotide positions when a scaling factor was used  
-  - Classify selection and save **tidy CSV** + **site lists**  
-  - Generate **2D Gamma + CI** plots (PDF)
-
-- **Downstream (3D mapping):**  
-  Use the per-gene CSVs and site lists to color protein structures (UCSF Chimera/ChimeraX).  
-  Typical usage: color by `Gamma` and highlight sites from the positive/negative lists.  
-  See `3D_Mapping_Scripts/` for examples.
-
-> Note: The current 2D script name reflects the **new fixed** implementation, while keeping the original filename (`2D_process_massprf_res.py`) for backward compatibility.
----
-
-## Installation
-
-### Prerequisites
-The pipeline assumes a Unix environment with bash shell. Advanced users can adjust instructions for other environments.
+**Tested on:**
+- AWS EC2 (Ubuntu 24.04 LTS, ARM64 / x86\_64, t4g/t3 series) — functional testing of all gap policy modes and example datasets
+- Yale University McCleary HPC cluster — large-scale dataset validation and runtime benchmarking
 
 ---
 
-### Steps
+## Table of Contents
 
-#### 0) Install MASS-PRF and MASS-PRF Preprocess
-You can clone this repository and read within for build instructions:  
-[https://github.com/zimingz/MASSPRF_10July2016](https://github.com/zimingz/MASSPRF_10July2016)
-
-It is important to note that you may need to build both `massprf` and `massprf_preprocess` independently:
-- The final executable for `massprf` will be in `./bin`.
-- The `massprf_preprocess` executable will be in `./MASSPRF_preprocessing_08July2016`.
+1. [System Requirements](#1-system-requirements)
+2. [Installation](#2-installation)
+3. [Quick Start Tutorial: First Example](#3-quick-start-tutorial-first-example)
+4. [Input File Format](#4-input-file-format)
+5. [All Options](#5-all-options)
+6. [Gap Handling (–gap_policy)](#6-gap-handling)
+7. [Understanding the Output](#7-understanding-the-output)
+8. [Downstream Visualization: 2D and 3D Tools](#8-downstream-visualization)
+9. [Common Situations and Warnings](#9-common-situations-and-warnings)
+10. [Pipeline for Batch Processing](#10-pipeline-for-batch-processing)
+11. [Contact](#11-contact)
 
 ---
 
-#### 0.1) Build Symlinks to MASS-PRF and MASS-PRF Preprocess
-Get the absolute path of your compiled `massprf` & `MASSPRF_preprocess`. These will be something like:
+## 1. System Requirements
 
-```plaintext
-~/PATH/TO/MASSPRF/MASSPRF_10July2016/bin/massprf
-~/PATH/TO/MASSPRF/MASSPRF_10July2016/MASSPRF_preprocessing_08July2016/MASSPRF_preprocess
+### Minimum (for typical genes ≤700 bp, ≤50 sequences)
+
+| Component | Requirement |
+|-----------|-------------|
+| CPU | Any modern dual-core processor |
+| RAM | 2 GB |
+| Disk | 100 MB (source + lookup tables) |
+| OS | Linux (x86\_64 or ARM64), macOS 10.9+, or Windows via WSL |
+| Compiler | g++ with C++11 support (GCC 4.8 or later) |
+
+### Recommended (genes >700 bp or large datasets)
+
+| Component | Requirement |
+|-----------|-------------|
+| CPU | 4+ cores (MASS-PRF uses multi-threading automatically) |
+| RAM | 8 GB or more |
+| Environment | Linux server, HPC, or cloud instance (e.g., AWS t3.medium or larger) |
+
+### Threading behavior
+
+MASS-PRF automatically detects the number of available CPU cores at startup and uses all of them for multi-threaded steps (confidence interval calculation and selection coefficient estimation). There is no command-line flag to limit thread count. On a shared HPC node, be aware that MASS-PRF will attempt to use all cores visible to the process.
+
+### Scaling: when do you need more resources?
+
+| Gene length | Sequences | Typical RAM | Typical runtime |
+|-------------|-----------|-------------|-----------------|
+| ≤700 bp | ≤50 | ~1 GB | seconds |
+| ~700 bp | ~12 (example data) | ~700 MB | 1–2 seconds |
+| >1000 bp | any | 4–8 GB | minutes |
+| >1000 bp | >100 | 8–16 GB | tens of minutes |
+
+> Memory scales with gene length squared (the clustering step enumerates O(N²) models where N is gene length in nucleotides). Sequence count affects data loading and preprocessing linearly. The authors recommend HPC resources for genes longer than 1000 bp.
+
+---
+
+## 2. Installation
+
+### Required software
+
+| Software | Purpose | Required? |
+|----------|---------|-----------|
+| g++ (GCC 4.8+) | Compile MASS-PRF | **Required** |
+| make | Optional build automation | Optional |
+| R + bio3d + Biostrings + muscle | 3D protein visualization only | Optional |
+| UCSF Chimera | 3D protein visualization only | Optional |
+| Python 3 + pandas + matplotlib + numpy | 2D plot generation only | Optional |
+
+MASS-PRF itself has **no external library dependencies**. It uses only the C++ standard library (`<thread>`, `<iostream>`, `<vector>`, etc.), which ship with any standard g++ installation.
+
+### Install the compiler
+
+**Linux (Ubuntu/Debian):**
+```bash
+sudo apt-get update && sudo apt-get install -y g++
 ```
-Createa custom symlinks folder in your home directory (if you haven't already):
+
+**Linux (CentOS/RHEL):**
+```bash
+sudo yum install -y gcc-c++
 ```
-mkdir ~/symbolics
-cd ~/symbolics
+
+**macOS:**
+```bash
+xcode-select --install
 ```
-Create links to massprf and massprf_preprocess in that directory:
+
+**Windows:** Use WSL (Windows Subsystem for Linux) and follow the Linux instructions above. Native Windows builds are not officially supported.
+
+### Clone and compile
+
+> **Important — which repository to clone:**
+> This repository (`MASSPRF`) contains the core analysis program source code.
+> A separate repository (`massprf-pipeline`) provides batch-processing scripts for running MASS-PRF across many genes. They are independent. You do not need the pipeline to run MASS-PRF.
+
+```bash
+# Clone the MASS-PRF source code
+git clone https://github.com/Townsend-Lab-Yale/MASSPRF.git
+cd MASSPRF
+
+# Create output directory and compile
+mkdir -p bin
+g++ -std=c++0x -O3 -pthread MASSprf.cpp PRFCluster.cpp base.cpp kfunc.cpp -o bin/massprf
 ```
-ln -s ~/PATH/TO/MASSPRF/MASSPRF_10July2016/bin/massprf massprf
-ln -s ~/PATH/TO/MASSPRF/MASSPRF_10July2016/MASSPRF_preprocessing_08July2016/MASSPRF_preprocess massprf_preprocess
+
+### Verify the installation
+
+```bash
+./bin/massprf -h
 ```
-Add the symbolic link folder to your $PATH in ~/.bash_profile:
+
+You should see the help message with version information and all available options. If you see `command not found`, confirm you are in the `MASSPRF` directory and the binary compiled successfully.
+
+### Files in this repository
+
 ```
-vim ~/.bash_profile
+MASSPRF/
+├── MASSprf.cpp                          # Main program entry point
+├── PRFCluster.cpp / PRFCluster.h        # Core clustering and ML engine
+├── base.cpp / base.h                    # Sequence utilities
+├── kfunc.cpp / kfunc.h                  # Mathematical functions (gamma, beta)
+├── LookupTable_*.dat                    # Pre-computed lookup tables (required at runtime)
+├── Attacin-C_DmDs_pol.fas               # Example: polymorphism data (Drosophila)
+├── Attacin-C_DmDs_div.fas               # Example: divergence data (Drosophila)
+├── FZF1_yeast_pol.fas / _div.fas        # Example: yeast FZF1 gene
+├── PanI_cod_pol.fas / _div.fas          # Example: Atlantic cod PanI gene
+├── Pol_all_YIR024C.fas / Div_Spar_*.fas # Example: yeast YIR024C gene
+└── bin/                                 # Compiled binary goes here
 ```
-Scroll to the line that says something like:
+
+> The four `LookupTable_*.dat` files must remain in the same directory as the binary, or be accessible from the working directory when you run MASS-PRF.
+
+---
+
+## 3. Quick Start Tutorial: First Example
+
+This tutorial walks you through running MASS-PRF from scratch using the Attacin-C example data included in the repository. No prior experience is required.
+
+### What is this example?
+
+- **Gene:** Attacin-C, an immunity gene in *Drosophila*
+- **Polymorphism data:** 12 sequences from *Drosophila melanogaster* (`Attacin-C_DmDs_pol.fas`)
+- **Divergence data:** 1 sequence from *Drosophila simulans* (`Attacin-C_DmDs_div.fas`)
+- **Gene length:** 723 bp (241 codons)
+
+### Step 1: Confirm you are in the right directory
+
+```bash
+ls *.fas
 ```
-PATH=$PATH:OTHERPATHS
+
+You should see files including `Attacin-C_DmDs_pol.fas` and `Attacin-C_DmDs_div.fas`.
+
+### Step 2: Run the analysis
+
+```bash
+./bin/massprf -p Attacin-C_DmDs_pol.fas -d Attacin-C_DmDs_div.fas
 ```
-Append a colon and add the path to your symbolic links, such that it looks like this:
+
+**What each flag does:**
+- `-p` — the polymorphism file: multiple aligned sequences from the same species or population
+- `-d` — the divergence file: one or more outgroup sequences from a related species
+
+### Step 3: Read the output
+
+The program prints results to the terminal. You will see lines like:
+
 ```
-PATH=$PATH:OTHERPATHS:$HOME/symbolics
-Save and reload your profile:
-source ~/.bash_profile
+[GAP] policy=strict threshold=0.5
+
+The gene length: 723 bp
+PS: 18
+DS: 20
+PR: 4
+DR: 9
 ```
-Save the file and reload your profile:
+
+**What do these numbers mean?**
+
+| Symbol | Full name | Meaning |
+|--------|-----------|---------|
+| PS | Polymorphic Synonymous | Silent (synonymous) nucleotide differences among the ingroup sequences |
+| DS | Divergent Synonymous | Silent differences between ingroup and outgroup |
+| PR | Polymorphic Replacement | Amino-acid-changing differences among the ingroup sequences |
+| DR | Divergent Replacement | Amino-acid-changing differences between ingroup and outgroup |
+
+The ratio DR/DS relative to PR/PS is the core signal. When DR/DS > PR/PS, the gene (or a region of it) has experienced positive selection. MASS-PRF then clusters the gene into regions with distinct selection intensities and estimates a selection coefficient (γ) for each site.
+
+### Step 4: Save the output to a file
+
+```bash
+./bin/massprf -p Attacin-C_DmDs_pol.fas -d Attacin-C_DmDs_div.fas > output_Attacin-C.txt
 ```
-source ~/.bash_profile
+
+Open `output_Attacin-C.txt` in any text editor to review the full results, including per-site γ estimates, clustering boundaries, and confidence intervals.
+
+### Step 5: Try the other example datasets
+
+```bash
+# Yeast FZF1 gene
+./bin/massprf -p FZF1_yeast_pol.fas -d FZF1_yeast_div.fas > output_FZF1.txt
+
+# Atlantic cod PanI gene
+./bin/massprf -p PanI_cod_pol.fas -d PanI_cod_div.fas > output_PanI.txt
+
+# Yeast YIR024C gene (larger dataset — may take a few minutes)
+./bin/massprf -p Pol_all_YIR024C.fas -d Div_Spar_YIR024C.fas > output_YIR024C.txt
 ```
-#### 1) Install Conda Package Manager
-   ```
-   pip install conda
-   ```
-If you are working on a cluster, you may need to install Miniconda directly from the package due to file permission issues or if pip is unavailable.
-In this case, download the file from https://conda.io/miniconda.html, run it on the cluster, and make sure the installation directory is added to your path via ~/.bashrc.
-After installing Miniconda, source the path and verify Python version:
+
+### Expected runtime
+
+On a standard laptop or cloud instance (2+ GB RAM):
+- Attacin-C: ~1–2 seconds
+- FZF1 / PanI: ~1–5 seconds
+- YIR024C (larger): ~1–5 minutes
+
+---
+
+## 4. Input File Format
+
+Both input files must be in **standard FASTA format** with sequences pre-aligned to the same length.
+
 ```
-source ~/.bashrc
-python
+>Sequence_Name_1
+ATGAGCAAAACTGTTCTCCTAATT...
+>Sequence_Name_2
+ATGAGCAAAATTGTTCTCCTAATT...
 ```
-#### 2) Update Conda
-Make sure your Conda is up to date by running:
+
+**Rules:**
+- All sequences in each file must be the **same length**
+- Sequences must be **in-frame coding sequences** starting at the first codon position
+- MASS-PRF does **not** perform alignment — use a tool such as MAFFT, MUSCLE, or ClustalW first
+- Gap characters (`-`) are accepted and handled according to `-gap_policy`
+- Ambiguous bases (non-A/T/G/C) are handled according to `-n`
+- Each file can have one blank line at the end without causing an error (you will see a notice, which is safe to ignore)
+
+**Polymorphism file (`-p`):** multiple sequences from the same species or population (ingroup).
+**Divergence file (`-d`):** one outgroup sequence, or a consensus of outgroup sequences.
+
+---
+
+## 5. All Options
+
 ```
-conda update conda
+./bin/massprf -p <pol_file> -d <div_file> [options]
 ```
-#### 3) Update Python
-Update Python to version 3.5, or optionally create a Python 3.5 virtual environment:
+
+### Input / Output
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-p` | Polymorphism FASTA file | **required** |
+| `-d` | Divergence FASTA file | **required** |
+| `-ic` | Input format: `0`=raw DNA sequences, `1`=pre-built consensus | `0` |
+| `-sn` | Number of polymorphism sequences (only needed when `-ic 1`) | — |
+| `-o` | Output level: `0`=amino acid, `1`=nucleotide | `0` |
+| `-v` | Verbose output: `0`=minimal, `1`=full | `1` |
+
+### Clustering
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-c` | Criterion: `0`=BIC, `1`=AIC, `2`=AICc, `3`=LRT | `0` (BIC) |
+| `-s` | Include synonymous site clustering: `0`=no, `1`=yes | `1` |
+| `-m` | `0`=model selection + averaging, `1`=selection only | `0` |
+| `-ci_m` | Compute 95% CI for model averaging: `0`/`1` | `0` |
+| `-a` | Minimum gene length to trigger scaling | auto |
+| `-SCL` | Compress sequences by 3, 6, or 9 nucleotides | off |
+
+> **Recommendation:** Use BIC (`-c 0`) for datasets with many sites or sequences. Use AIC or AICc for smaller sample sizes. Keep `-s 1` (default) for improved accuracy.
+
+### Selection Coefficient Estimation
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-r` | Estimate selection coefficient per site: `0`/`1` | `1` |
+| `-ci_r` | Compute 95% CI for selection coefficient: `0`/`1` | `1` |
+| `-exact` | CI algorithm: `0`=stochastic, `1`=exact | `0` |
+| `-mn` | Number of models for stochastic algorithm | `10000` |
+| `-NI` | Estimate Neutrality Index per site: `0`/`1` | `0` |
+| `-rMAp` | Output gamma from model-averaged PR and DR: `0`/`1` | `0` |
+
+### Divergence Time
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-t` | Species divergence time in million years (MY) | auto-estimated |
+| `-ssd` | Use site-specific divergence time from silent-site clustering | off |
+
+> `-t` and `-ssd` cannot be used together.
+
+### Sequence Handling
+
+| Flag | Description | Default |
+|------|-------------|---------|
+| `-g` | Genetic code (NCBI table number) | `1` (Standard) |
+| `-n` | Non-A/T/G/C base treatment: `0`=treat as gap, `1`=replace with most frequent base | `0` |
+| `-ng` | Non-genic mode (every base treated as nonsynonymous): `0`/`1` | `0` |
+| `-gap_policy` | Gap handling: `strict`, `pairwise`, or `threshold` | `strict` |
+| `-gap_threshold` | Gap fraction cutoff for threshold mode (0.0–1.0) | `0.5` |
+
+### Other
+
+| Flag | Description |
+|------|-------------|
+| `-h` | Show help and exit |
+
+---
+
+## 6. Gap Handling
+
+Aligned sequences often contain gap characters (`-`) where a sequence has an insertion or deletion relative to the alignment. MASS-PRF offers three strategies for how to treat codons that contain gaps.
+
+| Policy | Rule | When to use |
+|--------|------|-------------|
+| `strict` (default) | Exclude any codon where **any** sequence has a gap | Most conservative. Use when gap-containing sequences are unreliable or rare. |
+| `pairwise` | Keep a codon if at least **2 sequences** have no gap at that position | Retains more data. Appropriate for most standard alignment quality levels. |
+| `threshold` | `pairwise` rule, plus additionally exclude if the fraction of gapped sequences exceeds `-gap_threshold` | Fine-grained control. Useful when some positions are highly gapped but others are not. |
+
+The active gap policy is always printed at the start of every run:
 ```
-conda update python
+[GAP] policy=pairwise threshold=0.5
 ```
-#### 4) Install Package Dependencies
-Add the Bioconda channel to Conda:
+
+This line confirms which policy was applied and allows results to be reproduced exactly.
+
+### Examples
+
+```bash
+# Default: strict
+./bin/massprf -p pol.fas -d div.fas
+
+# Pairwise: keep codon if 2+ sequences are gap-free
+./bin/massprf -p pol.fas -d div.fas -gap_policy pairwise
+
+# Threshold: pairwise + reject if more than 30% of sequences have a gap
+./bin/massprf -p pol.fas -d div.fas -gap_policy threshold -gap_threshold 0.3
 ```
-conda config --add channels bioconda
+
+### Interaction with `-N` flag
+
+The legacy `-N` flag (imputation mode) implicitly sets gap policy. If `-gap_policy` is also specified, the explicit `-gap_policy` takes priority.
+
+---
+
+## 7. Understanding the Output
+
+### Key summary lines
+
 ```
-Install required packages:
+The gene length: 723 bp
+PS: 18    # polymorphic synonymous sites
+DS: 20    # divergent synonymous sites
+PR: 4     # polymorphic replacement (nonsynonymous) sites
+DR: 9     # divergent replacement (nonsynonymous) sites
 ```
-conda install pandas
-conda install biopython
-conda install gffutils
-conda install pyvcf
+
+### Selection coefficient (γ) per site
+
+After clustering, MASS-PRF reports per-site γ values. Positive γ indicates positive selection; negative γ indicates purifying selection; γ near 0 indicates neutrality.
+
+### Clustering boundaries
+
+The output shows which regions of the gene were assigned to the same selection class, with log-likelihood scores for model selection.
+
+### "Mission accomplished"
+
+The final line of a successful run is:
 ```
-#### 5) Clone This Repository
+Mission accomplished.
 ```
+
+If you do not see this line, the run did not complete successfully.
+
+---
+
+## 8. Downstream Visualization
+
+MASS-PRF output can be visualized in two ways using companion tools.
+
+### 2D Plot (per-gene summary)
+
+The `2D_process_massprf_res.py` Python script processes MASS-PRF result files and generates 2D selection intensity plots.
+
+**Requirements:**
+```bash
+pip install pandas matplotlib numpy
+```
+
+**Usage:** Place the script in the directory containing your MASS-PRF output files and run:
+```bash
+python3 2D_process_massprf_res.py
+```
+
+Plots and processed results are saved to `./processed_output/`.
+
+### 3D Protein Structure (Chimera coloring)
+
+The `batchMASSPRF_To_Chimera.R` R script maps MASS-PRF selection coefficients onto a protein structure and generates coloring commands for UCSF Chimera.
+
+**Requirements:**
+- R with packages: `bio3d`, `Biostrings`, `muscle`
+- UCSF Chimera (free for academic use)
+
+**Usage in R:**
+```r
+source("batchMASSPRF_To_Chimera.R")
+
+# Single gene
+batchMASSPRF_Chimera(
+  designFile = "example_inputs/S-design.tsv",
+  hasHeader  = TRUE,
+  onlySig    = FALSE,
+  bins       = 10
+)
+```
+
+The design file (TSV format) specifies the PDB structure file, the nucleotide FASTA, the MASS-PRF output table, and the scaling factor. Example design files are provided in `example_inputs/`.
+
+### Workflow summary
+
+```
+Raw sequences (FASTA)
+        │
+        ▼
+   [Alignment tool: MAFFT / MUSCLE / ClustalW]
+        │
+        ▼
+   MASS-PRF  (this tool)
+        │
+        ├──► 2D plot via 2D_process_massprf_res.py
+        │
+        └──► 3D structure coloring via batchMASSPRF_To_Chimera.R + UCSF Chimera
+```
+
+---
+
+## 9. Common Situations and Warnings
+
+### "Warning: PR is too low for clustering, skipping PR clustering."
+
+This means the dataset has fewer than 2 nonsynonymous polymorphic sites (PR < 2). The clustering step requires at least 2 events to statistically distinguish regions. This is not a program error — it is expected for highly conserved genes or small datasets. The program continues and outputs the PS/DS/PR/DR counts it did compute.
+
+**What to do:** This is normal for genes under strong purifying selection. If you expected more variation, check that your polymorphism file contains enough sequences and that the sequences are correctly aligned in-frame.
+
+### "Warning: DR is too low for clustering, skipping DR clustering."
+
+Same situation as above, but for divergent replacement sites. The program continues.
+
+### "Error clustering (PS is too low!)" or "Error clustering (DS is too low!)"
+
+These errors indicate PS or DS < 2. They occur inside the clustering engine when the clustering was already attempted. Increasing your dataset size or using a gene with more variation is the remedy.
+
+### "Notice: End-of-file reached."
+
+This is a harmless notice that appears if your FASTA file has a trailing blank line. You can ignore it.
+
+### The program is killed (exit code 137)
+
+This is an out-of-memory (OOM) condition. The system ran out of RAM.
+
+**Solutions:**
+- Use a machine or instance with more RAM (see System Requirements)
+- Add swap space on Linux: `sudo fallocate -l 4G /swapfile && sudo chmod 600 /swapfile && sudo mkswap /swapfile && sudo swapon /swapfile`
+- For genes >1000 bp, use an HPC node or a cloud instance with ≥8 GB RAM
+
+### Results are identical across gap policy modes
+
+This is expected when gap-containing positions do not overlap with polymorphic sites, or when the gap fraction is low in all gap-containing positions. The gap policy difference only affects results when gapped codons coincide with non-synonymous polymorphic sites in sufficient numbers.
+
+### Multi-threading on shared HPC nodes
+
+MASS-PRF uses all CPU cores it can detect (`std::thread::hardware_concurrency()`). On a shared HPC node, this may conflict with other jobs. Submit your job with a CPU allocation that matches your node's available cores, or consult your HPC system administrator about core binding.
+
+---
+
+## 10. Pipeline for Batch Processing
+
+For analyzing many genes automatically, a separate pipeline repository is available:
+
+```bash
 git clone https://github.com/Townsend-Lab-Yale/massprf-pipeline.git
 ```
-Usage
-To run the example pipeline, see jobs.list in the massprf-pipeline folder. Example commands include:
 
-Prepare Input Files
+> This is a **distinct repository** from the MASS-PRF source code. It provides shell/Python scripts to run MASS-PRF across directories of gene files. Refer to its own README for installation and usage instructions. The pipeline requires MASS-PRF to already be compiled and accessible.
 
-Ensure the input files are in the required format (e.g., FASTA or consensus FASTA). See the examples/ folder for sample files.
-Run the Program
+---
 
-Example command:
-```
-./massprf -p examples/input_pol.fasta -d examples/input_div.fasta -o 1 -s 1 -exact 0
-```
+## 11. Contact
 
-***Files and Folders***<br>
-massprf-pipeline/: Scripts and documentation for genome-wide analysis.<br>
-examples/: Sample input and output files.<br>
-Source Code: All necessary .cpp and .h files for MASS-PRF.<br>
-2D_Mapping_Scripts/: Scripts for generating 2D mapping visualizations.<br>
-3D_Mapping_Scripts/: Scripts for generating 3D mapping visualizations.
+For bug reports or suggestions:
 
-***Citation***<br>
-If you use MASS-PRF in your research, please cite:
+- Yide Jin — jinyide0202@gmail.com
+- Zi-Ming Zhao — ziming.gt@gmail.com
+- Michael C. Campbell — mc44680@usc.edu
+- Jeffrey Townsend — Jeffrey.Townsend@Yale.edu
 
-Z.-M. Zhao, M. C. Campbell, N. Li, Z. Zhang, and J. P. Townsend. Detection of regional variation in selection intensity within protein-coding genes using DNA sequence polymorphism and divergence. Molecular Biology and Evolution, 2017. 34 (11), 3006-3022.<br> 
-https://doi.org/10.1093/molbev/msx213
-
-***Contact***<br>
-For questions or support, contact:<br> 
-Jeffrey Townsend<br>
-Elihu Professor of Biostatistics and Ecology & Evolutionary Biology<br>
-Email:Jeffrey.Townsend@Yale.edu
-or <br>
-Yide Jin <br>
-Email: yide.jin@yale.edu/jinyide0202@gmail.com
- 
+More information: https://medicine.yale.edu/lab/townsend/sand/

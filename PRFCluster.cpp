@@ -86,9 +86,8 @@ PRFCluster::PRFCluster() {
 	ci_r=1;
 	ci_r_exact=0;
 	Nuc_replace=0;
-	// --- NEW defaults for gap handling ---
-    gap_policy    = 0;    // 0=skip any codon containing '-'
-    gap_threshold = 0.5; // used only when gap_policy==2
+    gap_policy    = 0;    // 0=strict: mask any codon containing '-' (default)
+    gap_threshold = 0.5; // used only when gap_policy==2 (threshold mode)
 	non_genic_mode = 0;  // default off
 
 	NI_estimate=0;
@@ -190,15 +189,7 @@ int PRFCluster::Run(int argc, const char*argv[]) {
 	////srand(1234); // to fix random number generator, to make sure the program is repeatable; need to remove for the final version of the program
 
 	try {
-		//Parse input parameters
-		if (parseParameter(argc, argv)!=1) throw 1;
-		if (site_specific_flag && !(Sys_cluster))
-		{
-			cout << "Can't do site_specific divergence time calculation without silent clustering -s option" <<endl;
-			throw 1;
-		}
-
-        // --- NEW: read env to override gap knobs at runtime (safe bounds) ---
+        // Read environment variables first (lowest priority, command-line will override)
         if (const char* gp = std::getenv("GAP_POLICY")) {
             int v = std::atoi(gp);
             if (v >= 0 && v <= 2) gap_policy = v;
@@ -207,10 +198,19 @@ int PRFCluster::Run(int argc, const char*argv[]) {
             double v = std::atof(gt);
             if (v >= 0.0 && v <= 1.0) gap_threshold = v;
         }
-        // optional debug echo (comment out if noisy)
-        std::cout << "[GAP] policy=" << gap_policy
+
+		//Parse input parameters (command-line overrides env vars)
+		if (parseParameter(argc, argv)!=1) throw 1;
+		if (site_specific_flag && !(Sys_cluster))
+		{
+			cout << "Can't do site_specific divergence time calculation without silent clustering -s option" <<endl;
+			throw 1;
+		}
+
+        // Report final gap policy in effect
+        const char* gp_name = (gap_policy==0) ? "strict" : (gap_policy==1) ? "pairwise" : "threshold";
+        std::cout << "[GAP] policy=" << gp_name
                   << " threshold=" << gap_threshold << std::endl;
-        // --- END NEW ---
 		//Check input file names
 		if(pol_seqfile=="" || div_seqfile=="") throw 1;
 
@@ -1122,59 +1122,67 @@ int PRFCluster::RunML(vector<string> pol_seq, vector<string> div_seq) {
 		vec_lower_rate_ps=vec_lower_rate;
 		vec_upper_rate_ps=vec_upper_rate;
 	}
-	//Initialize for PR
-	vec_SelectedModels.clear();
-	vec_MS_rate.clear();
-	vec_MA_rate.clear();
-	vec_lower_rate.clear();
-	vec_upper_rate.clear();
+	time_t time_start1;
+	time_t t2;
+	if(Sys_cluster==1 && !this->non_genic_mode && pr>1){
+		//Initialize for PR
+		vec_SelectedModels.clear();
+		vec_MS_rate.clear();
+		vec_MA_rate.clear();
+		vec_lower_rate.clear();
+		vec_upper_rate.clear();
 
-	vec_MS_rate.resize(N,0.0);
-	vec_MA_rate.resize(N,0.0);
-	vec_lower_rate.resize(N,0.0);
-	vec_upper_rate.resize(N,0.0);
+		vec_MS_rate.resize(N,0.0);
+		vec_MA_rate.resize(N,0.0);
+		vec_lower_rate.resize(N,0.0);
+		vec_upper_rate.resize(N,0.0);
 
-	flag_seq=1;
-	cout<<"****** Start Clustering Polymorphism Replacement"<<endl;
-	time_t time_start1 = time(NULL); // Record the start time
-	q=ClusterSubSeq(0, N-1,'R',flag_seq,rep_pol);
-	if (q == -1)
-	{
-		cout << "Error clustering (PR is too low!)" << endl;
-		throw 1;
+		flag_seq=1;
+		cout<<"****** Start Clustering Polymorphism Replacement"<<endl;
+		time_start1 = time(NULL); // Record the start time
+		q=ClusterSubSeq(0, N-1,'R',flag_seq,rep_pol);
+		if (q == -1)
+		{
+			cout << "Warning: PR is too low for clustering, skipping PR clustering." << endl;
+		}
+		else
+		{
+			cout<<"End Clustering Polymorphism Replacement (Time elapsed: ";
+			t2 = time(NULL)-time_start1;
+			h=t2/3600, m=(t2%3600)/60, s=t2-(t2/60)*60;
+			if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
+			else   cout<<m<<":"<<s<<")"<<endl;
+
+			cout<<"End Clustering Polymorphism Replacement (Total Time elapsed: ";
+			t2total = time(NULL)-time_startRunML;
+			h=t2total/3600, m=(t2total%3600)/60, s=t2total-(t2total/60)*60;
+			if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
+			else   cout<<m<<":"<<s<<")"<<endl;
+
+			vec_SelectedModels_pr=vec_SelectedModels;
+			vec_MS_rate_pr=vec_MS_rate;
+			vec_MA_rate_pr=vec_MA_rate;
+			if(MS_only==0 && ci_ma==1){
+				cout<<"****** Start Model Averaging Polymorphism Replacement"<<endl;
+				time_t time_start111 = time(NULL); // Record the start time
+				CI_MA(rep_pol,N);
+				cout<<"End Model Averaging Polymorphism Replacement (Time elapsed: ";
+				time_t t22 = time(NULL)-time_start111;
+				h=t22/3600, m=(t22%3600)/60, s=t22-(t22/60)*60;
+				if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
+				else   cout<<m<<":"<<s<<")"<<endl;
+				cout<<"End Model Averaging Polymorphism Replacement (Total Time elapsed: ";
+				t2total = time(NULL)-time_startRunML;
+				h=t2total/3600, m=(t2total%3600)/60, s=t2total-(t2total/60)*60;
+				if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
+				else   cout<<m<<":"<<s<<")"<<endl;
+			}
+			vec_lower_rate_pr=vec_lower_rate;
+			vec_upper_rate_pr=vec_upper_rate;
+		}
+	} else if(Sys_cluster==1 && !this->non_genic_mode && pr<=1) {
+		cout << "Warning: PR is too low for clustering, skipping PR clustering." << endl;
 	}
-	cout<<"End Clustering Polymorphism Replacement (Time elapsed: ";
-	time_t t2 = time(NULL)-time_start1;
-	h=t2/3600, m=(t2%3600)/60, s=t2-(t2/60)*60;
-	if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
-	else   cout<<m<<":"<<s<<")"<<endl;
-
-	cout<<"End Clustering Polymorphism Replacement (Total Time elapsed: ";
-	t2total = time(NULL)-time_startRunML;
-	h=t2total/3600, m=(t2total%3600)/60, s=t2total-(t2total/60)*60;
-	if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
-	else   cout<<m<<":"<<s<<")"<<endl;
-
-	vec_SelectedModels_pr=vec_SelectedModels;
-	vec_MS_rate_pr=vec_MS_rate;
-	vec_MA_rate_pr=vec_MA_rate;
-	if(MS_only==0 && ci_ma==1 && pr>1){
-		cout<<"****** Start Model Averaging Polymorphism Replacement"<<endl;
-		time_t time_start111 = time(NULL); // Record the start time
-		CI_MA(rep_pol,N);
-		cout<<"End Model Averaging Polymorphism Replacement (Time elapsed: ";
-		time_t t22 = time(NULL)-time_start111;
-		h=t22/3600, m=(t22%3600)/60, s=t22-(t22/60)*60;
-		if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
-		else   cout<<m<<":"<<s<<")"<<endl;
-		cout<<"End Model Averaging Polymorphism Replacement (Total Time elapsed: ";
-		t2total = time(NULL)-time_startRunML;
-		h=t2total/3600, m=(t2total%3600)/60, s=t2total-(t2total/60)*60;
-		if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
-		else   cout<<m<<":"<<s<<")"<<endl;
-	}
-	vec_lower_rate_pr=vec_lower_rate;
-	vec_upper_rate_pr=vec_upper_rate;
 
 	//// Fixed bug due to the new OS X 10.9 system [error: variable length array of non-POD element type 'struct SiteModels']
 	////Solution: use a very large number instead of the parameter N for the gene length, for keeping all models for each gene site, to make sure the number is larger than the gene length.
@@ -1222,65 +1230,71 @@ int PRFCluster::RunML(vector<string> pol_seq, vector<string> div_seq) {
 		vec_upper_rate_ds=vec_upper_rate;
 	}
 
-	//Initialize for DR
-	vec_SelectedModels.clear();
-	vec_MS_rate.clear();
-	vec_MA_rate.clear();
-	vec_lower_rate.clear();
-	vec_upper_rate.clear();
+	if(Sys_cluster==1 && !this->non_genic_mode && dr>1){
+		//Initialize for DR
+		vec_SelectedModels.clear();
+		vec_MS_rate.clear();
+		vec_MA_rate.clear();
+		vec_lower_rate.clear();
+		vec_upper_rate.clear();
 
-	vec_MS_rate.resize(N,0.0);
-	vec_MA_rate.resize(N,0.0);
-	vec_lower_rate.resize(N,0.0);
-	vec_upper_rate.resize(N,0.0);
+		vec_MS_rate.resize(N,0.0);
+		vec_MA_rate.resize(N,0.0);
+		vec_lower_rate.resize(N,0.0);
+		vec_upper_rate.resize(N,0.0);
 
-	flag_seq=3;
+		flag_seq=3;
 
-	cout<<"****** Start Clustering Divergence Replacement"<<endl;
-	time_start1 = time(NULL); // Record the start time
-	q= ClusterSubSeq(0, N-1,'R',flag_seq,rep_div);
-	if (q == -1)
-	{
-		cout << "Error clustering (DR is too low!)" << endl;
-		throw 1;
+		cout<<"****** Start Clustering Divergence Replacement"<<endl;
+		time_start1 = time(NULL); // Record the start time
+		q= ClusterSubSeq(0, N-1,'R',flag_seq,rep_div);
+		if (q == -1)
+		{
+			cout << "Warning: DR is too low for clustering, skipping DR clustering." << endl;
+		}
+		else
+		{
+			cout<<"End Clustering Divergence Replacement (Time elapsed: ";
+			t2 = time(NULL)-time_start1;
+			h=t2/3600, m=(t2%3600)/60, s=t2-(t2/60)*60;
+			if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
+			else   cout<<m<<":"<<s<<")"<<endl;
+
+			cout<<"End Clustering Divergence Replacement (Total Time elapsed: ";
+			t2total = time(NULL)-time_startRunML;
+			h=t2total/3600, m=(t2total%3600)/60, s=t2total-(t2total/60)*60;
+			if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
+			else   cout<<m<<":"<<s<<")"<<endl;
+
+			vec_SelectedModels_dr=vec_SelectedModels;
+			vec_MS_rate_dr=vec_MS_rate;
+			vec_MA_rate_dr=vec_MA_rate;
+			if(MS_only==0 && ci_ma==1){
+
+				cout<<"****** Start Model Averaging Polymorphism Replacement"<<endl;
+				time_t time_start111 = time(NULL); // Record the start time
+
+				CI_MA(rep_div,N);
+
+				cout<<"End Model Averaging Polymorphism Replacement (Time elapsed: ";
+				time_t t22 = time(NULL)-time_start111;
+				h=t22/3600, m=(t22%3600)/60, s=t22-(t22/60)*60;
+				if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
+				else   cout<<m<<":"<<s<<")"<<endl;
+				cout<<"End Model Averaging Divergence Replacement (Total Time elapsed: ";
+				t2total = time(NULL)-time_startRunML;
+				h=t2total/3600, m=(t2total%3600)/60, s=t2total-(t2total/60)*60;
+				if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
+				else   cout<<m<<":"<<s<<")"<<endl;
+
+			}
+
+			vec_lower_rate_dr=vec_lower_rate;
+			vec_upper_rate_dr=vec_upper_rate;
+		}
+	} else if(Sys_cluster==1 && !this->non_genic_mode && dr<=1) {
+		cout << "Warning: DR is too low for clustering, skipping DR clustering." << endl;
 	}
-	cout<<"End Clustering Divergence Replacement (Time elapsed: ";
-	t2 = time(NULL)-time_start1;
-	h=t2/3600, m=(t2%3600)/60, s=t2-(t2/60)*60;
-	if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
-	else   cout<<m<<":"<<s<<")"<<endl;
-
-	cout<<"End Clustering Divergence Replacement (Total Time elapsed: ";
-	t2total = time(NULL)-time_startRunML;
-	h=t2total/3600, m=(t2total%3600)/60, s=t2total-(t2total/60)*60;
-	if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
-	else   cout<<m<<":"<<s<<")"<<endl;
-
-	vec_SelectedModels_dr=vec_SelectedModels;
-	vec_MS_rate_dr=vec_MS_rate;
-	vec_MA_rate_dr=vec_MA_rate;
-	if(MS_only==0 && ci_ma==1 && dr>1){
-
-		cout<<"****** Start Model Averaging Polymorphism Replacement"<<endl;
-		time_t time_start111 = time(NULL); // Record the start time
-
-		CI_MA(rep_div,N);
-
-		cout<<"End Model Averaging Polymorphism Replacement (Time elapsed: ";
-		time_t t22 = time(NULL)-time_start111;
-		h=t22/3600, m=(t22%3600)/60, s=t22-(t22/60)*60;
-		if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
-		else   cout<<m<<":"<<s<<")"<<endl;
-		cout<<"End Model Averaging Divergence Replacement (Total Time elapsed: ";
-		t2total = time(NULL)-time_startRunML;
-		h=t2total/3600, m=(t2total%3600)/60, s=t2total-(t2total/60)*60;
-		if(h)  cout<<h<<":"<<m<<":"<<s<<")"<<endl;
-		else   cout<<m<<":"<<s<<")"<<endl;
-
-	}
-
-	vec_lower_rate_dr=vec_lower_rate;
-	vec_upper_rate_dr=vec_upper_rate;
 
 	if(!divtime_flag){
 		DivergentTime(species_n, N, divergent_time);
@@ -3569,7 +3583,7 @@ bool PRFCluster::parseParameter(int argc, const char* argv[]) {
 		 */
 		else {
 			//parse parameters
-			int modelAveraged_p_gamma_flag=0, pol_num_flag=0, input_consensus_flag=0, output_flag=0, pol_flag=0, div_flag=0, code_flag=0, criterion_flag=0,ms_flag=0, synonymous_flag=0,ci_ma_flag=0,r_flag=0,ci_r_flag=0,ci_method_flag=0, nuc_replace_flag=0, ni_flag=0;
+			int modelAveraged_p_gamma_flag=0, pol_num_flag=0, input_consensus_flag=0, output_flag=0, pol_flag=0, div_flag=0, code_flag=0, criterion_flag=0,ms_flag=0, synonymous_flag=0,ci_ma_flag=0,r_flag=0,ci_r_flag=0,ci_method_flag=0, nuc_replace_flag=0, ni_flag=0, gap_policy_explicit=0;
 			model_num_flag=0;
 			int verbose_flag=0;
 			verbose=1;
@@ -3791,14 +3805,13 @@ bool PRFCluster::parseParameter(int argc, const char* argv[]) {
                         Nuc_replace = num;
                         nuc_replace_flag = 1;
 
-                        // Keep gap handling policy consistent with -N mode for consensus builders
-                        if (num==2) {
-                            // For -N 2 (also imputing gaps), use pairwise + threshold as a safeguard
-                            gap_policy = 2;  // pairwise + threshold
-                            // gap_threshold remains at its default unless set elsewhere
-                        } else {
-                            // For -N 0/1, strictly mask any codon containing '-'
-                            gap_policy = 0;  // any gap -> mask
+                        // Only set gap_policy from -N if the user did not explicitly set -gap_policy
+                        if (gap_policy_explicit == 0) {
+                            if (num==2) {
+                                gap_policy = 2;  // threshold: consistent with -N 2 gap imputation
+                            } else {
+                                gap_policy = 0;  // strict: any gap -> mask
+                            }
                         }
                     } else {
                         cout << "Error! The -N parameter should be 0, 1 or 2!\n";
@@ -3813,6 +3826,35 @@ bool PRFCluster::parseParameter(int argc, const char* argv[]) {
                         this->non_genic_mode = v;
                     } else {
                         cout << "Error! -NG should be 0 or 1!\n";
+                        throw 1;
+                    }
+                }
+
+                // Gap handling policy
+                else if (temp=="-GAP_POLICY" && (i+1)<argc && gap_policy_explicit==0) {
+                    string gp_val = stringtoUpper(argv[++i]);
+                    if (gp_val == "STRICT") {
+                        gap_policy = 0;
+                        gap_policy_explicit = 1;
+                    } else if (gp_val == "PAIRWISE") {
+                        gap_policy = 1;
+                        gap_policy_explicit = 1;
+                    } else if (gp_val == "THRESHOLD") {
+                        gap_policy = 2;
+                        gap_policy_explicit = 1;
+                    } else {
+                        cout << "Error! -gap_policy must be: strict, pairwise, or threshold\n";
+                        throw 1;
+                    }
+                }
+
+                // Gap threshold (used only when -gap_policy threshold)
+                else if (temp=="-GAP_THRESHOLD" && (i+1)<argc) {
+                    double v = CONVERT<double>(argv[++i]);
+                    if (v >= 0.0 && v <= 1.0) {
+                        gap_threshold = v;
+                    } else {
+                        cout << "Error! -gap_threshold must be a value between 0.0 and 1.0\n";
                         throw 1;
                     }
                 }
@@ -3931,15 +3973,14 @@ void PRFCluster::showHelpInfo() {
 	cout << "      \tNote: In -ng 1, PS/DS=0 by design and NI is not applicable." << endl;
 
 
-    cout << "  GAP POLICY & ENVIRONMENT VARIABLES:" << endl;
-    cout << "      gap_policy (advanced handling of codons with gaps '-'): " << endl;
-    cout << "        0: skip codons with gaps (default)" << endl;
-    cout << "        1: treat gaps as missing data (equivalent to -n 0)" << endl;
-    cout << "        2: majority rule replacement (requires gap_threshold)" << endl;
-    cout << "      gap_threshold [float 0.0–1.0]: fraction required for majority base replacement," << endl;
-    cout << "        default=0.5 (only used when gap_policy=2)." << endl;
-    cout << "      Environment variables GAP_POLICY and GAP_THRESHOLD may override runtime values." << endl;
-    cout << "      Example: export GAP_POLICY=2 GAP_THRESHOLD=0.7" << endl;
+    cout << "  -gap_policy\tGap handling strategy [optional], default=strict" << endl;
+    cout << "      strict   : mask any codon where at least one sequence contains '-' (most conservative)" << endl;
+    cout << "      pairwise : keep a codon if at least 2 sequences have no gap at that site" << endl;
+    cout << "      threshold: pairwise, plus mask if the gap fraction exceeds -gap_threshold" << endl;
+    cout << "  -gap_threshold\t[float 0.0-1.0] gap fraction cutoff for threshold mode, default=0.5" << endl;
+    cout << "      Example: -gap_policy threshold -gap_threshold 0.3" << endl;
+    cout << "      Note: environment variables GAP_POLICY (0/1/2) and GAP_THRESHOLD are also accepted" << endl;
+    cout << "            but command-line arguments take precedence." << endl;
 
     cout << "  -NI\tEstimate the Neutrality Index for each site [integer, optional], default=0" << endl;
     cout << "  -v\tVerbose output [0 or 1], default=1" << endl;
