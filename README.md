@@ -505,8 +505,8 @@ git clone https://github.com/Townsend-Lab-Yale/massprf-pipeline.git
 
 For bug reports or suggestions:
 
-- Yide Jin — jinyide0202@gmail.com
-- Zi-Ming Zhao — ziming.gt@gmail.com
+- Yide Jin（Maintainer） — jinyide0202@gmail.com
+- Zi-Ming Zhao（Creator） — ziming.gt@gmail.com
 - Michael C. Campbell — mc44680@usc.edu
 - Jeffrey Townsend — Jeffrey.Townsend@Yale.edu
 
