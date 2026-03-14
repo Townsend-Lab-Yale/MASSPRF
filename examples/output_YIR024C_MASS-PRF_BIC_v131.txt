@@ -1,0 +1,112 @@
+parse parameter
+[GAP] policy=strict threshold=0.5
+
+MASS-PRF, Version: 1.31 [January 30th, 2025]
+Reference: Zi-Ming Zhao, Ning Li, Zhang Zhang and Jeffrey P. Townsend. (2016) Regions within coding gene sequences experience diverse intensities of natural selection inferred from polymorphism and divergence.
+
+Notice: End-of-file reached. Please ensure that your FASTA file conforms to the standard format.
+Standard FASTA format requires each entry to begin with a '>' followed by the taxa name and sequence lines. If your file includes an extra empty line at the end, this message can be safely ignored.
+Notice: End-of-file reached. Please ensure that your FASTA file conforms to the standard format.
+Standard FASTA format requires each entry to begin with a '>' followed by the taxa name and sequence lines. If your file includes an extra empty line at the end, this message can be safely ignored.
+
+Criterion used: BIC
+
+
+Polymorphism data:
+
+>S288C/CLIB215/CLIB324/I14/IL01/M22/PW5/T73/UC5/Y12/YJM269/YJM320/YJM326/YJM451/YJM653/YPS163/T7_updated/YJM280/YJM421/
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGCTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGCTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATAGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+
+
+Divergence data:
+
+>Spar/
+ATGTTTTTGGCAAGACCACCATTAAGAAATGGGCTA
+
+
+
+Open and Read the lookup table for numeric integration:
+
+The number of species in the polymorphism data:19
+
+Extract LookupTable_gx1_n_gamma_integration_50_v9.dat
+
+Vector size after extraction: 201
+
+Extract LookupTable_gx1_derivative_n_gamma_50_v9.dat
+
+Vector size after extraction: 201
+
+Extract LookupTable_gx2_n_gamma_integration_50_v9.dat
+
+Vector size after extraction: 201
+
+Extract LookupTable_gx2_derivative_n_gamma_50_v9.dat
+
+Vector size after extraction: 201
+****** Start RunML
+Step-getPolSysRep:
+Finish getPolSysRep: 
+consensus seq: ***R**************************R*R***
+Polymorphism: ***R**************************R*R***
+Divergence:   ******R*********R*RRR***********-R*R
+
+The gene length: 36bp
+PS: 0
+DS: 0
+PR: 3
+DR: 7
+No Scaling requested 
+Scaling outputs (displayed for unscaled features too):
+Scaled size:36
+Polymorphism Synonymous: ************************************
+Polymorphism Replacement: ***R**************************R*R***
+Divergence Synonymous: ************************************
+Divergence Replacement: ******R*********R*RRR************R*R
+
+PS: 0
+DS: 0
+PR: 3
+DR: 7
+
+Number of Individuals in Polymorphism=19
+Before Clustering (Total Time elapsed: 0:0)
+****** Start Clustering Polymorphism Replacement
+The total models in ClusterSubSeq: 666
+The total models in ClusterSubSeq: 21
+The total models in ClusterSubSeq: 6
+End Clustering Polymorphism Replacement (Time elapsed: 0:0)
+End Clustering Polymorphism Replacement (Total Time elapsed: 0:0)
+****** Start Clustering Divergence Replacement
+The total models in ClusterSubSeq: 666
+The total models in ClusterSubSeq: 171
+The total models in ClusterSubSeq: 120
+The total models in ClusterSubSeq: 6
+The total models in ClusterSubSeq: 6
+End Clustering Divergence Replacement (Time elapsed: 0:0)
+End Clustering Divergence Replacement (Total Time elapsed: 0:0)
+
+*************
+Warning: There is not enough information from sysnonymous sites to estimate divergence time! The estimation of r is not right!
+Note:    Please give the empirical divergence time, run the program to estimate r.
+*************
+****** Start r_stochastic
+Site	PolymorphismModelSize	DivergenceModelSize	AllUsedModels	ModelsWithSavedGammaValues	r_ma	r_ma_prob	CIr_lower	CIr_upper

@@ -1,9 +1,8 @@
 # MASS-PRF
 
-**MASS-PRF** (Model Averaged Site Selection via Poisson Random Field) provides a fine-scale framework for quantifying natural selection across a protein-coding gene. Instead of summarizing selection with a single gene-level estimate, it uses within-species polymorphism together with between-species divergence to infer how selection strength changes from site to site and across localized regions. Through a likelihood-based clustering procedure, MASS-PRF identifies groups of adjacent sites that share similar evolutionary patterns, without requiring prior assumptions about where selected regions begin or end. These clustered signals are then integrated under a Poisson Random Field model to estimate site-specific population-scaled selection coefficients (
-𝛾 and their uncertainty. As a result, the method is particularly useful for revealing regional heterogeneity in selection and for connecting evolutionary inference to biological function, especially when selection is concentrated in specific domains rather than spread uniformly across the gene.
+**MASS-PRF** (McDonald and Kreitman with Simultaneous Synonymous-to-Replacement rate estimation) infers and quantifies natural selection across regions within a coding gene. It jointly analyzes within-species polymorphism and between-species divergence data to estimate site-specific selection coefficients using a maximum likelihood clustering framework.
 
-**Version:** 1.31 | **Last Updated:** March 12th, 2025
+**Version:** 1.31 | **Last Updated:** January 30th, 2025
 **License:** Creative Commons CC BY-NC
 **Reference:** Zi-Ming Zhao, Ning Li, Zhang Zhang and Jeffrey P. Townsend. (2016) Regions within coding gene sequences experience diverse intensities of natural selection inferred from polymorphism and divergence. *G3: Genes, Genomes, Genetics.*
 
@@ -57,12 +56,12 @@ MASS-PRF automatically detects the number of available CPU cores at startup and 
 
 | Gene length | Sequences | Typical RAM | Typical runtime |
 |-------------|-----------|-------------|-----------------|
-| ≤700 bp | ≤50 | ~1 GB | seconds |
-| ~700 bp | ~12 (example data) | ~700 MB | 1–2 seconds |
-| >1000 bp | any | 4–8 GB | minutes |
-| >1000 bp | >100 | 8–16 GB | tens of minutes |
+| very short (≤200 bp) | any | < 100 MB | seconds |
+| ~700 bp | ~12 (example data) | ~7–8 GB | 20–30 seconds |
+| ~600 bp | ~34 (example data) | ~5–6 GB | ~1.5–2 hours |
+| >1000 bp | >100 | 16+ GB | hours |
 
-> Memory scales with gene length squared (the clustering step enumerates O(N²) models where N is gene length in nucleotides). Sequence count affects data loading and preprocessing linearly. The authors recommend HPC resources for genes longer than 1000 bp.
+> Memory scales with gene length (the clustering step enumerates up to ~260,000 candidate models per site). The provided example datasets (Attacin-C, FZF1, PanI, YIR024C) have been verified on an AWS EC2 t3.large instance (8 GB RAM, 2 vCPUs). See `examples/` for expected output files.
 
 ---
 
@@ -131,14 +130,13 @@ MASSPRF/
 ├── PRFCluster.cpp / PRFCluster.h        # Core clustering and ML engine
 ├── base.cpp / base.h                    # Sequence utilities
 ├── kfunc.cpp / kfunc.h                  # Mathematical functions (gamma, beta)
+├── LookupTable_*.dat                    # Pre-computed lookup tables (required at runtime)
 ├── Attacin-C_DmDs_pol.fas               # Example: polymorphism data (Drosophila)
 ├── Attacin-C_DmDs_div.fas               # Example: divergence data (Drosophila)
 ├── FZF1_yeast_pol.fas / _div.fas        # Example: yeast FZF1 gene
 ├── PanI_cod_pol.fas / _div.fas          # Example: Atlantic cod PanI gene
 ├── Pol_all_YIR024C.fas / Div_Spar_*.fas # Example: yeast YIR024C gene
-└── bin/
-    ├── LookupTable_*.dat                # Pre-computed lookup tables (required at runtime)
-    └── massprf                          # Compiled binary (generated during installation)
+└── bin/                                 # Compiled binary goes here
 ```
 
 > The four `LookupTable_*.dat` files must remain in the same directory as the binary, or be accessible from the working directory when you run MASS-PRF.
@@ -159,7 +157,7 @@ This tutorial walks you through running MASS-PRF from scratch using the Attacin-
 ### Step 1: Confirm you are in the right directory
 
 ```bash
-ls *.fas
+ls examples/*.fas
 ```
 
 You should see files including `Attacin-C_DmDs_pol.fas` and `Attacin-C_DmDs_div.fas`.
@@ -167,7 +165,7 @@ You should see files including `Attacin-C_DmDs_pol.fas` and `Attacin-C_DmDs_div.
 ### Step 2: Run the analysis
 
 ```bash
-./bin/massprf -p Attacin-C_DmDs_pol.fas -d Attacin-C_DmDs_div.fas
+./bin/massprf -p examples/Attacin-C_DmDs_pol.fas -d examples/Attacin-C_DmDs_div.fas
 ```
 
 **What each flag does:**
@@ -202,7 +200,7 @@ The ratio DR/DS relative to PR/PS is the core signal. When DR/DS > PR/PS, the ge
 ### Step 4: Save the output to a file
 
 ```bash
-./bin/massprf -p Attacin-C_DmDs_pol.fas -d Attacin-C_DmDs_div.fas > output_Attacin-C.txt
+./bin/massprf -p examples/Attacin-C_DmDs_pol.fas -d examples/Attacin-C_DmDs_div.fas > output_Attacin-C.txt
 ```
 
 Open `output_Attacin-C.txt` in any text editor to review the full results, including per-site γ estimates, clustering boundaries, and confidence intervals.
@@ -210,22 +208,25 @@ Open `output_Attacin-C.txt` in any text editor to review the full results, inclu
 ### Step 5: Try the other example datasets
 
 ```bash
-# Yeast FZF1 gene
-./bin/massprf -p FZF1_yeast_pol.fas -d FZF1_yeast_div.fas > output_FZF1.txt
+# Yeast FZF1 gene (~20–30 seconds)
+./bin/massprf -p examples/FZF1_yeast_pol.fas -d examples/FZF1_yeast_div.fas > output_FZF1.txt
 
-# Atlantic cod PanI gene
-./bin/massprf -p PanI_cod_pol.fas -d PanI_cod_div.fas > output_PanI.txt
+# Atlantic cod PanI gene (~1.5–2 hours)
+./bin/massprf -p examples/PanI_cod_pol.fas -d examples/PanI_cod_div.fas > output_PanI.txt
 
-# Yeast YIR024C gene (larger dataset — may take a few minutes)
-./bin/massprf -p Pol_all_YIR024C.fas -d Div_Spar_YIR024C.fas > output_YIR024C.txt
+# Yeast YIR024C gene (seconds)
+./bin/massprf -p examples/Pol_all_YIR024C.fas -d examples/Div_Spar_YIR024C.fas > output_YIR024C.txt
 ```
 
 ### Expected runtime
 
-On a standard laptop or cloud instance (2+ GB RAM):
-- Attacin-C: ~1–2 seconds
-- FZF1 / PanI: ~1–5 seconds
-- YIR024C (larger): ~1–5 minutes
+Measured on AWS EC2 t3.large (8 GB RAM, 2 vCPUs, Ubuntu 24.04):
+- YIR024C: < 5 seconds
+- Attacin-C: ~20–30 seconds
+- FZF1: ~20–30 seconds
+- PanI: ~1.5–2 hours
+
+Expected output files for all four datasets are provided in `examples/` for reference.
 
 ---
 
