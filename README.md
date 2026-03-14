@@ -2,7 +2,7 @@
 
 **MASS-PRF** (McDonald and Kreitman with Simultaneous Synonymous-to-Replacement rate estimation) infers and quantifies natural selection across regions within a coding gene. It jointly analyzes within-species polymorphism and between-species divergence data to estimate site-specific selection coefficients using a maximum likelihood clustering framework.
 
-**Version:** 1.31 | **Last Updated:** March 12th, 2025
+**Version:** 2.0 | **Last Updated:** March 12th, 2025
 **License:** Creative Commons CC BY-NC
 **Reference:** Zi-Ming Zhao, Ning Li, Zhang Zhang and Jeffrey P. Townsend. (2016) Regions within coding gene sequences experience diverse intensities of natural selection inferred from polymorphism and divergence. *G3: Genes, Genomes, Genetics.*
 
