@@ -128,10 +128,6 @@ def parse_args():
     p = argparse.ArgumentParser(
         description="Process MASS-PRF outputs into per-NT CSV/site-lists/plots."
     )
-    p.add_argument(
-        "--ng", action="store_true",
-        help="Non-genic mode: treat input as per-nucleotide; force scaling=1; set x-axis label to 'nucleotide position'."
-    )
     return p.parse_args()
 
 # -------------------------
@@ -169,7 +165,7 @@ def main():
             table = parse_table(lines)
 
             # Scaling: expand to per-nucleotide to unify downstream
-            scaling = 1 if args.ng else extract_scaling(lines)
+            scaling = extract_scaling(lines)
             sel_df = descale_to_nt(table, scaling)
 
             # Significance filters (same as before)
@@ -207,7 +203,7 @@ def main():
                 plt.plot(x, y)
                 plt.fill_between(x, ylo, yhi, alpha=0.2)
                 plt.axhline(y=0, color='black', linestyle='-')
-                plt.xlabel('nucleotide position' if args.ng else 'position')  # generic label for NT or AA
+                plt.xlabel('position')
                 plt.ylabel('Scaled selection coefficient (gamma)')
                 plt.savefig(join(plot_dir, f"{gene_name}.pdf"))
                 plt.close()
