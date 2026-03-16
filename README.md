@@ -61,7 +61,7 @@ MASS-PRF automatically detects the number of available CPU cores at startup and 
 | ~600 bp | ~34 (example data) | ~5–6 GB | ~1.5–2 hours |
 | >1000 bp | >100 | 16+ GB | hours |
 
-> Memory scales with gene length (the clustering step enumerates up to ~260,000 candidate models per site). The provided example datasets (Attacin-C, FZF1, PanI, YIR024C) have been verified on an AWS EC2 t3.large instance (8 GB RAM, 2 vCPUs). See `examples/` for expected output files.
+> Memory scales with gene length (the clustering step enumerates up to ~260,000 candidate models per site). The provided example datasets (Attacin-C, FZF1, PanI, YIR024C) have been verified on AWS EC2 t3.large (x86\_64, 8 GB RAM) and t4g.large (ARM64, 8 GB RAM), both running Ubuntu 24.04. See `examples/` for expected output files.
 
 ---
 
@@ -220,13 +220,16 @@ Open `output_Attacin-C.txt` in any text editor to review the full results, inclu
 
 ### Expected runtime
 
-Measured on AWS EC2 t3.large (8 GB RAM, 2 vCPUs, Ubuntu 24.04):
-- YIR024C: < 5 seconds
-- Attacin-C: ~20–30 seconds
-- FZF1: ~20–30 seconds
-- PanI: ~1.5–2 hours
+| Dataset | x86\_64 (t3.large, 2 vCPUs) | ARM64 (t4g.large, 2 vCPUs) |
+|---------|------------------------------|------------------------------|
+| YIR024C | < 5 seconds | < 5 seconds |
+| Attacin-C | ~20–30 seconds | ~8 seconds |
+| FZF1 | ~20–30 seconds | ~13 seconds |
+| PanI | ~1.5–2 hours | ~6 seconds |
 
-Expected output files for all four datasets are provided in `examples/` for reference.
+Both tested on Ubuntu 24.04 LTS with 8 GB RAM. ARM64 (AWS Graviton) is substantially faster for large datasets. The installation procedure is identical on both architectures.
+
+Expected output files for all four datasets are provided in `examples/` for reference (suffixed `_v131` for x86\_64 and `_v131_ARM64` for ARM64).
 
 ---
 
