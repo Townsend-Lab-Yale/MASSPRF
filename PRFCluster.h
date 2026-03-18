@@ -10,10 +10,10 @@
 
 #define NAME "MASS-PRF"	//Program name
 #define FULLNAME "Model Averaged Site Selection - Poission Random Field"
-#define VERSION    "1.31"
-#define LASTUPDATE "January 30th, 2025"
+#define VERSION    "2.0"
+#define LASTUPDATE "March 2026"
 #define FUNCTION "Estimate selection intensity for each single site in coding sequences by using polymorphism and divergence data."
-#define REFERENCE "Zi-Ming Zhao, Ning Li, Zhang Zhang and Jeffrey P. Townsend. (2016) Regions within coding gene sequences experience diverse intensities of natural selection inferred from polymorphism and divergence."
+#define REFERENCE "Zi-Ming Zhao, Ning Li, Zhang Zhang and Jeffrey P. Townsend. (2016) Regions within coding gene sequences experience diverse intensities of natural selection inferred from polymorphism and divergence.\n  Maintained and updated by Yide Jin (2025-2026)."
 
 
 
