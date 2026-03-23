@@ -1,79 +1,77 @@
-<h1 align="center">MASS-PRF 3D Protein Coloring</h1>
-<h3 align="center">Map MASS-PRF outputs onto protein structures in Chimera</h3>
+# MASS-PRF 3D Protein Structure Coloring
 
-Map MASS-PRF outputs onto protein structures by generating a UCSF Chimera command script that colors residues by selection strength (γ).
+**Map MASS-PRF selection coefficients onto protein structures in UCSF Chimera**
 
-## Version recommendation:
-Tested with UCSF Chimera 1.17.3. You can also use Chimera 1.19 (latest). The commands are compatible with both versions.
+This script reads MASS-PRF output tables, assigns each residue a color based on its gamma (γ) value, and writes a Chimera command script that colors your protein structure accordingly — blue for negative selection, red for positive selection, neutral for non-significant or unanalyzed sites.
 
-> **What’s new (Oct 2025)**
->
-> - Replaced **scaling factor** input with an explicit **output format** (`AA` vs `NT`) to match how MASS-PRF was run.
-> - Unified handling of γ → color ramps across _all_ genes in a batch.
-> - Clear, explicit significance aggregation for `NT` (per-codon) and `AA` (per-residue) modes.
-> - Optional signed log scaling of γ (set `logT` to a numeric base).
-> - Safer defaults, cleaner Chimera script emission, and more verbose checks.
+> **Updated by Yide Jin (March 2026)**
+> - Added example data files for the five proteins in protocol paper Figure 4 (NPC2, REX4, NBR9, COQ11, ERG11 — *S. cerevisiae*)
+> - Script now tolerates extra columns (e.g. a `notes` column) in the design file
+> - Expanded beginner-friendly tutorial below
 
 ---
 
-## Example 3D Output
+## Example output
 
 ![Example 3D Output](example-outputs/image_SCH4_AF-P53334-F1-model_v4.pdb.png)
 
+Residues are colored from blue (purifying selection, low γ) through neutral to red (positive selection, high γ).
 
 ---
 
-## 1) Installation
+## Quick-start: reproduce Figure 4 in 5 steps
 
-### R packages
+No prior experience with R or structural biology is required.
 
-```r
-# core
+### Step 1 — Install R and required packages
 
-## What’s new: fixed γ range & out-of-range handling
-
-We added a **fixed gamma range** and a small helper to map γ values consistently across projects. Two new arguments are exposed in the wrapper:
+Download R from https://cran.r-project.org (free, Windows/Mac/Linux). Then in R or RStudio run:
 
 ```r
-# New parameters (defaults shown)
-minGamma = -4
-maxGamma = 50
+install.packages(c("bio3d", "readr", "dplyr"))
+
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  install.packages("BiocManager")
+BiocManager::install(c("Biostrings", "msa"))
 ```
 
-**Behavior**
+This only needs to be done once. The `msa` package includes the MUSCLE aligner — no separate installation required.
 
-- The global color palette is now built using a **symmetric split** around 0 with separate ramps for negative and positive γ.  
-- γ values **below `minGamma`** are clamped into the **lowest (blue) bin**; values **above `maxGamma`** are clamped into the **highest (red) bin**.  
-- If `logT` is numeric (e.g., `logT = 2`), the same fixed range is respected in **signed-log space** for smoother contrasts while preserving sign.
+### Step 2 — Download the example data
 
-**Backwards compatibility**
+All input files for Figure 4 are in the `example-inputs/` folder of this repository:
 
-- If all observed γ already fall within `[minGamma, maxGamma]`, the colors you obtained previously should remain qualitatively consistent, with improved stability across batches.
+| File(s) | Gene |
+|---|---|
+| `PDB_files/AF-Q12408-F1-model_v4.pdb` | NPC2 |
+| `PDB_files/AF-Q08237-F1-model_v4.pdb` | REX4 |
+| `PDB_files/AF-Q08954-F1-model_v4.pdb` | NBR9 |
+| `PDB_files/AF-Q05892-F1-model_v4.pdb` | COQ11 |
+| `PDB_files/AF-P10614-F1-model_v4.pdb` | ERG11 |
+| `OG0001972.fna` + `OG0001972_out.txt.csv` | NPC2 — nucleotide alignment + MASS-PRF table |
+| `OG0003224.fna` + `OG0003224_out.txt.csv` | REX4 |
+| `OG0005121.fna` + `OG0005121_out.txt.csv` | NBR9 |
+| `OG0005087.fna` + `OG0005087_out.txt.csv` | COQ11 |
+| `OG0000435.fna` + `OG0000435_out.txt.csv` | ERG11 |
+| `design.tsv` | Master table linking all files above |
 
-### Updated function signature (excerpt)
+Download the entire `example-inputs/` folder and keep all files together in the same directory on your computer.
+
+### Step 3 — Set your working directory in R
 
 ```r
-batchMASSPRF_Chimera(
-  designFile,
-  doOnly     = NULL,
-  hasHeader  = FALSE,
-  sigSetting = "average",
-  onlySig    = FALSE,
-  rgb1       = c(250, 30, 30),
-  rgb2       = c(30, 30, 250),
-  bins       = 510,
-  ehColor    = c(180, 180, 180),
-  midColor   = c(240, 240, 240),
-  logT       = 2,        # numeric for signed-log scaling; use FALSE for linear
-  verbose    = FALSE,
-  minGamma   = -4,       # NEW: fixed γ lower bound
-  maxGamma   = 50        # NEW: fixed γ upper bound
-)
+# Replace with the actual path on your computer
+setwd("C:/Users/YourName/Downloads/example-inputs")   # Windows
+# setwd("/Users/YourName/Downloads/example-inputs")   # Mac/Linux
 ```
 
-### Example
+In RStudio you can also do this via: **Session -> Set Working Directory -> Choose Directory**.
+
+### Step 4 — Run the script
 
 ```r
+source("path/to/batchMASSPRF_To_Chimera.R")
+
 batchMASSPRF_Chimera(
   designFile = "design.tsv",
   hasHeader  = TRUE,
@@ -83,79 +81,62 @@ batchMASSPRF_Chimera(
   ehColor    = c(0, 180, 0),
   logT       = 2,
   minGamma   = -4,
-  maxGamma   = 50
+  maxGamma   = 50,
+  verbose    = TRUE
 )
 ```
 
-> Note: We now **conditionally install** dependencies to avoid reinstalling packages you already have:
-> ```r
-> if (!requireNamespace("BiocManager", quietly = TRUE)) install.packages("BiocManager")
-> if (!requireNamespace("msa", quietly = TRUE)) BiocManager::install("msa")
-> if (!requireNamespace("bio3d", quietly = TRUE)) install.packages("bio3d")
-> ```
-> (The script also uses **Biostrings**; please ensure it’s installed: `BiocManager::install("Biostrings")`.)
+This produces five `.cscript` files in your working directory:
+`NPC2.cscript`, `REX4.cscript`, `NBR9.cscript`, `COQ11.cscript`, `ERG11.cscript`
 
-install.packages(c("readr","dplyr"))
+### Step 5 — Visualize in UCSF Chimera
 
-# from Bioconductor
-if (!requireNamespace("BiocManager", quietly = TRUE))
-  install.packages("BiocManager")
-BiocManager::install(c("Biostrings","msa"))
+1. Download **UCSF Chimera** (classic, not ChimeraX) from https://www.cgl.ucsf.edu/chimera/download.html. Tested with versions 1.17.3 and 1.19.
+2. Open Chimera. Load a PDB: **File -> Open** and select e.g. `AF-Q12408-F1-model_v4.pdb`. It loads as model `#0`.
+3. Open the command line: **Favorites -> Command Line**.
+4. Type the following (use the full absolute path to your `.cscript` file):
+   ```
+   read /full/path/to/NPC2.cscript
+   ```
+5. The structure is now colored by γ. Red = positive selection, blue = purifying selection, green = no data or non-significant.
 
-# CRAN
-install.packages("bio3d")
-```
-
-### Get the script
-
-Place `batchMASSPRF_To_Chimera.R` in your working directory, then:
-
-```r
-source("batchMASSPRF_To_Chimera.R")
-```
-
-### Chimera
-
-Install **UCSF Chimera** (classic) to visualize and run the generated coloring scripts.
+> **Tip:** Save a publication-quality image with **File -> Save Image** in Chimera.
 
 ---
 
-## 2) What the script does (overview)
+## How the script works (overview)
 
-1. **Reads a design TSV** describing each gene/protein to process.  
-2. **Parses MASS-PRF tables** (CSV with γ and CIs) and **builds a global γ→color palette** so colors are comparable across all inputs in one batch.  
-3. **Aligns sequences**: translates your nucleotide FASTA to AA, aligns it to the PDB-derived sequence (via `msa::msa(..., method="Muscle")`), and maps per-residue colors into structure positions.  
-4. **Aggregates significance**:
-   - **`format = "NT"`**: groups every 3 nucleotide rows to one amino-acid “site” (codon-level aggregation).
-   - **`format = "AA"`**: uses each row as one residue.
-   - `sigSetting` controls how multiple rows (NT) decide a site’s significance.
-5. **Writes a Chimera command file** (e.g., `*.cmd`) that defines custom colors and applies them to contiguous residue ranges on `#0`.
+1. **Reads a design TSV** — links each protein's PDB file, nucleotide FASTA, and MASS-PRF output table.
+2. **Builds a global color palette** — all γ values across the entire batch are pooled into one consistent color scale, so colors are directly comparable across proteins.
+3. **Aligns sequences** — the FASTA is translated to amino acids and aligned to the PDB sequence using MUSCLE. This maps positions correctly even when the analyzed sequence and the structure differ by insertions or deletions.
+4. **Assigns colors per residue** — each structural residue is matched to its γ value.
+5. **Writes Chimera command files** — one `.cscript` per protein, defining custom colors and applying them to residue ranges.
 
 ---
 
-## 3) Inputs
+## Input file formats
 
-### Design file (TSV)
+### Design file (TSV) — 5 required columns (in order)
 
-Set `hasHeader = TRUE` if your TSV has a header. Columns (in order):
+Extra columns (e.g. a `notes` column) are silently ignored.
 
-1. **pdbList** — path to the PDB file to color  
-2. **MASSPRF_Nuc_Fasta_List** — path to _nucleotide_ FASTA from MASS-PRF (in-frame)  
-3. **MASSPRF_Table_List** — path to MASS-PRF output **CSV** (contains γ and CIs)  
-4. **formatList** — `"AA"` or `"NT"` indicating which MASS-PRF **output format** you used  
-5. **outList** — where to write the Chimera command script (e.g., `mygene.cmd`)
+| Column | Description |
+|---|---|
+| `pdb` | Path to the PDB file |
+| `MASSPRF_Nuc_Fasta` | Path to the in-frame nucleotide FASTA |
+| `MASSPRF_Table` | Path to the MASS-PRF output CSV |
+| `format` | `AA` (amino-acid level) or `NT` (nucleotide level) |
+| `out` | Output `.cscript` filename or path |
 
-#### Minimal example (tab-separated)
+Minimal example (tab-separated, with header row):
 
 ```
-pdbList	MASSPRF_Nuc_Fasta_List	MASSPRF_Table_List	formatList	outList
-/path/to/X.pdb	/path/to/X.fasta	/path/to/X_massprf.csv	AA	/colors/X.cmd
-/path/to/Y.pdb	/path/to/Y.fasta	/path/to/Y_massprf.csv	NT	/colors/Y.cmd
+pdb	MASSPRF_Nuc_Fasta	MASSPRF_Table	format	out
+PDB_files/AF-Q12408-F1-model_v4.pdb	OG0001972.fna	OG0001972_out.txt.csv	AA	NPC2.cscript
+PDB_files/AF-P10614-F1-model_v4.pdb	OG0000435.fna	OG0000435_out.txt.csv	AA	ERG11.cscript
 ```
 
-### MASS-PRF table (CSV) expected columns
-
-The script expects **15** columns (header names can be anything; they are reassigned internally):
+### MASS-PRF output table (CSV) — 15 columns
 
 ```
 Position, MS_PolSys, MA_PolSys, MS_PolRep, MA_PolRep,
@@ -164,233 +145,85 @@ DivergentTime, Gamma, Lower_CI_Gamma, Upper_CI_Gamma,
 PolymorphismMutationStatus, DivergenceMutationStatus
 ```
 
-The script casts `Gamma`, `Lower_CI_Gamma`, `Upper_CI_Gamma` to numeric.
+The key columns used for coloring are `Gamma`, `Lower_CI_Gamma`, and `Upper_CI_Gamma`.
 
 ---
 
-## 4) Function signature & parameters
+## Full function reference
 
 ```r
 batchMASSPRF_Chimera(
-  designFile,
-  doOnly   = NULL,             # optional integer vector of row indices
-  hasHeader= FALSE,            # does design TSV include a header row?
-  sigSetting = "average",      # "average", "any", "majority", "strict"
-  onlySig  = FALSE,            # TRUE = mask non-significant sites to ehColor
-  rgb1     = c(250, 30, 30),   # positive γ color (hex ramp high end)
-  rgb2     = c(30, 30, 250),   # negative γ color (hex ramp low end)
-  bins     = 510,              # number of color bins for the gradient
-  ehColor  = c(180, 180, 180), # default “neutral”/gap/non-sig color
-  midColor = c(240, 240, 240), # optional midpoint (neutral) color
-  logT     = FALSE,            # FALSE=linear, or numeric base for signed log
-  verbose  = FALSE             # print progress
+  designFile,              # path to design TSV (required)
+  doOnly     = NULL,       # integer vector: process only these row numbers
+  hasHeader  = FALSE,      # TRUE if design file has a header row
+  sigSetting = "average",  # "average", "any", "majority", "strict"
+  onlySig    = FALSE,      # TRUE: color only residues with significant gamma
+  rgb1       = c(250, 30, 30),    # color for high positive gamma (default: red)
+  rgb2       = c(30, 30, 250),    # color for high negative gamma (default: blue)
+  bins       = 510,               # number of color bins (higher = smoother gradient)
+  ehColor    = c(180, 180, 180),  # color for sites with no data (default: gray)
+  midColor   = c(240, 240, 240),  # color for gamma near 0 (default: near-white)
+  logT       = 2,          # FALSE = linear scale; 2 or 10 = log-scaled color ramp
+  verbose    = FALSE,      # print progress messages
+  minGamma   = -4,         # gamma below this is clamped to the lowest (blue) bin
+  maxGamma   = 50          # gamma above this is clamped to the highest (red) bin
 )
 ```
 
-### Key behaviors & tips
+**Key parameters explained:**
 
-- **Format (`AA` vs `NT`)**
-  - `AA`: 1 row in MASS-PRF table → 1 residue.
-  - `NT`: rows are nucleotides; the script **groups every 3 rows** per codon (per AA “site”) before coloring & significance.
-
-- **Significance test**  
-  A site is **significant** if its CI does **not** cross 0 (i.e., `LCI > 0` or `UCI < 0`). NAs are treated as **non-significant**.  
-  `sigSetting` for `NT` determines how codon triplets vote:
-  - `"any"`: any nucleotide significant → site significant
-  - `"majority"`: ≥2 of 3 significant → site significant
-  - `"strict"`: all three significant → site significant
-  - `"average"` (default): average the CIs across the triplet and test once
-
-- **`onlySig`**  
-  When `TRUE`, non-significant sites are colored **`ehColor`** (e.g., grey or green); significant sites get the γ-based gradient color.
-
-- **Signed log scaling (`logT`)**  
-  Set to a numeric base (e.g., `2`) to compress large |γ| while keeping the sign:  
-  `logGamma = sign(γ) * log(|γ| + 1, base = logT)`.  
-  Set to `FALSE` for linear mapping.
-
-- **Color ramp (`rgb2` → `midColor` → `rgb1`)**  
-  The ramp flows from negative γ (**`rgb2`**) through optional **`midColor`** to positive γ (**`rgb1`**).  
-  Increase `bins` for smoother gradients (up to ~510 workable steps).
-
-- **Global palette**  
-  Colors are computed across _all_ inputs in the batch so that the same γ value gets the same color no matter which gene.
+- **`logT`**: Log-scaling distributes colors more evenly when γ spans a wide range (e.g. −4 to 50). `logT = 2` uses log base 2; `logT = FALSE` uses a linear scale.
+- **`sigSetting`** (relevant only when `format = "NT"`, which has 3 nucleotide rows per codon):
+  - `"average"` — site is significant if the mean CI excludes zero *(recommended default)*
+  - `"any"` — significant if at least one of the 3 rows has CI excluding zero
+  - `"majority"` — at least 2 of 3 rows significant
+  - `"strict"` — all 3 rows must be significant
+- **`onlySig`**: When `TRUE`, non-significant residues are shown only in `ehColor`.
+- **`minGamma` / `maxGamma`**: Fixing these ensures colors mean the same thing across different proteins and runs.
 
 ---
 
-## 5) Example runs
-
-### Single gene (AA output, linear)
+## More example calls
 
 ```r
-batchMASSPRF_Chimera(
-  designFile = "example_inputs/S-design.tsv",
-  hasHeader  = TRUE,
-  onlySig    = FALSE,
-  bins       = 10,
-  midColor   = c(240, 245, 240),
-  logT       = FALSE
-)
-```
-
-### Batch (mix of AA & NT, signed log base 2, green “neutral”)
-
-```r
-batchMASSPRF_Chimera(
-  designFile = "example_inputs/batch-design.tsv",
-  hasHeader  = TRUE,
-  onlySig    = FALSE,
-  bins       = 15,
-  midColor   = c(240, 240, 240),
-  ehColor    = c(0, 180, 0),
-  logT       = 2
-)
-```
-
-### Subset only rows 2 and 5 from the design
-
-```r
-batchMASSPRF_Chimera(
-  designFile = "example_inputs/mix-design.tsv",
-  hasHeader  = TRUE,
-  doOnly     = c(2, 5),
-  onlySig    = TRUE,
-  bins       = 50,
-  logT       = 2
-)
-```
-
----
-
-## 6) Using the output in Chimera
-
-1. Open your PDB in Chimera (make sure it’s **model #0** or adapt the script).  
-2. In **Chimera Command Line**:
-
-```
-read /absolute/path/to/output.cmd;
-```
-
-The script:
-- Defines custom colors (e.g., `colordef Custom1 #RRGGBB;`)  
-- Applies colors to contiguous residue ranges (e.g., `color Custom1 #0:5-18;`)
-
-> **Note:** The script assumes **model `#0`**. If your model number differs, edit `#0:` in the generated file accordingly.
-
----
-
-## 7) Practical guidance & common pitfalls
-
-- **AA vs NT format matters.**  
-  Set `formatList` in the design TSV to **match how the MASS-PRF table was produced**.
-  - `AA` output: 1 row/residue → simple mapping.
-  - `NT` output: 3 rows/codon → the script aggregates to one residue (see `sigSetting`).
-
-- **Stop codons.**  
-  The nucleotide FASTA is translated to AA and `*` are removed automatically:
-  ```r
-  origUnaligned <- gsub("\\*", "", translate(readDNAStringSet(...)))
-  ```
-
-- **Sequence alignment.**  
-  We align **translated FASTA** to **PDB sequence** (from `bio3d::pdbseq`) using MUSCLE (via `msa`). Large indels/gaps may produce stretches colored with `ehColor` if positions do not align cleanly.
-
-- **Global palette interpretation.**  
-  Because the script pools all γ values first, a residue’s color is meaningful **relative to the whole batch**, not just its own protein.
-
-- **Signed log scaling.**  
-  If extreme γ values dominate, consider `logT = 2` (or 10) to spread colors more evenly while preserving sign.
-
-- **Only significant sites.**  
-  Set `onlySig = TRUE` if you want a clean map of significant selection only (everything else becomes `ehColor`).
-
-- **Model number in Chimera.**  
-  If your PDB is not `#0`, search-replace `#0:` in the output script (or open your PDB first so it becomes `#0`).
-
----
-
-## 8) Alignment with the current team decisions
-
-- The 3D coloring script **no longer needs a “scaling factor” column**. Instead, we **explicitly specify `format`** (`AA` vs `NT`) in the design TSV.
-- Internally:
-  - **`AA`**: table rows map 1:1 to residues.
-  - **`NT`**: rows are grouped by codon (triplets) to produce a single site per residue; significance is aggregated by `sigSetting`.
-- The older logic for “scaled sites” has been removed from the user interface because the 2D output already reports per-site rows and the 3D script consumes those directly.
-- The 2D plotting code (separate) should label the x-axis as **“site”** (not “nucleotide position”) to avoid confusion when feeding AA outputs.
-
----
-
-## 9) Troubleshooting checklist
-
-- **Mismatched lengths** or “Input Lists of different length”:  
-  Check your TSV has exactly 5 columns in the correct order.
-
-- **Format error** (“Format column must contain only 'NT' or 'AA'”):  
-  Ensure `formatList` cells are spelled exactly `NT` or `AA`.
-
-- **Palette looks weird**:  
-  Try `logT = 2` and/or raise `bins` (e.g., 200–510). Consider adding a `midColor`.
-
-- **All grey/neutral** with `onlySig = TRUE`:  
-  Your CIs may cross 0 or be `NA`. Try `onlySig = FALSE` to inspect raw γ mapping.
-
-- **Chimera shows no color**:  
-  Confirm your structure is model `#0`. If not, edit the generated `#0:` selectors.
-
----
-
-## 10) Reproducible example (template)
-
-```r
-# 1) Prepare a design TSV with columns:
-#    pdbList, MASSPRF_Nuc_Fasta_List, MASSPRF_Table_List, formatList, outList
-#    (tab-separated).
-# 2) Then run:
-source("batchMASSPRF_To_Chimera.R")
+# Color only significant sites; all others shown in gray
 batchMASSPRF_Chimera(
   designFile = "design.tsv",
   hasHeader  = TRUE,
-  onlySig    = FALSE,
-  bins       = 15,
-  midColor   = c(240, 240, 240),
-  ehColor    = c(0, 180, 0),
-  logT       = 2,
-  verbose    = TRUE
+  onlySig    = TRUE,
+  ehColor    = c(200, 200, 200),
+  logT       = 2
 )
-# In Chimera:
-# Command Line → read /full/path/to/your_output.cmd;
+
+# Process only rows 1 and 3 from a larger design file
+batchMASSPRF_Chimera(
+  designFile = "design.tsv",
+  hasHeader  = TRUE,
+  doOnly     = c(1, 3),
+  logT       = 2
+)
 ```
 
 ---
 
-## 11) FAQ
+## Troubleshooting
 
-**Q: Which format should I use?**  
-A: Use `AA` if you ran MASS-PRF to produce amino-acid rows (Prof. Townsend’s recommendation). Use `NT` if your MASS-PRF table is nucleotide-level (3× rows). Set `formatList` accordingly in the design TSV.
-
-**Q: How exactly is significance defined?**  
-A: A site is significant if its CI excludes zero: `LCI > 0` (positive selection) or `UCI < 0` (negative selection). NAs are treated as non-significant.
-
-**Q: Why do some residues stay neutral (`ehColor`)?**  
-A: Gaps, unaligned residues, missing γ/CI, or (with `onlySig=TRUE`) non-significant sites.
-
-**Q: Can I compare colors across proteins?**  
-A: Yes—within the same **batch run**, because the palette is computed globally across all γ.
-
-## Authors and Acknowledgments
-
-Special thanks to **Yen-Wen (Denny) Wang** for the code refactoring and  
-**Prarthana Sanjeeva Reddy** for testing and improving the AA and NT workflows.  
-
-Their contributions greatly improved the stability and reproducibility of the 3D visualization pipeline.
+| Problem | Likely cause | Fix |
+|---|---|---|
+| `Error: replacement has N rows, data has M` | Design file column mismatch | Ensure first 5 columns are in the correct order; extra columns are now ignored automatically |
+| `Format column must contain only 'NT' or 'AA'` | Typo or trailing space | Check for spaces in the format column; must be exactly `NT` or `AA` |
+| All residues show `ehColor` | Sequence alignment failed | Verify the FASTA is an in-frame coding sequence; check for very large insertions/deletions |
+| All residues grey/neutral with `onlySig = TRUE` | All confidence intervals cross zero | Run with `onlySig = FALSE` first to confirm data is loading correctly |
+| Chimera shows no color change after `read` | Wrong model number | Structure must be model `#0`; if not, edit `#0` in the `.cscript` file to match your model number |
+| `Error in read.pdb` | PDB file path is wrong | All paths in design TSV are relative to your R working directory; confirm with `getwd()` |
+| Temporary file `_tmpAln.fasta` left behind | Normal behavior | The script writes this file to align sequences; it can be deleted after the run |
 
 ---
 
-**Original Author:**  
-**Nic Fisk**  
-Assistant Professor  
-Department of Cell and Molecular Biology  
-College of the Environment and Life Sciences  
-University of Rhode Island  
+## Authors and acknowledgments
 
-📧 j.nicholas.fisk@uri.edu
+**Original author:** Nic Fisk, Assistant Professor, Department of Cell and Molecular Biology, College of the Environment and Life Sciences, University of Rhode Island. j.nicholas.fisk@uri.edu
+
+**Code refactoring and NT/AA workflow:** Yen-Wen (Denny) Wang and Prarthana Sanjeeva Reddy
+
+**Example data (Figure 4) and tutorial update (March 2026):** Yide Jin

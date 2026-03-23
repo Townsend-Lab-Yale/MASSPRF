@@ -51,7 +51,8 @@ batchMASSPRF_Chimera <-
     if(verbose) print("Processing Design File")
     
     # read and optionally subset the design file
-    myDesignFile <- read.csv(designFile, sep = "\t", header = hasHeader)
+    myDesignFile <- read.csv(designFile, sep = "	", header = hasHeader)
+    myDesignFile <- myDesignFile[, 1:5]
     if (!is.null(doOnly)) myDesignFile <- myDesignFile[doOnly, ]
     colnames(myDesignFile) <- c("pdbList",
                                 "MASSPRF_Nuc_Fasta_List",
