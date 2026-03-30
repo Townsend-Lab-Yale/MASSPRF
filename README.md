@@ -2,7 +2,7 @@
 
 **MASS-PRF** (McDonald and Kreitman with Simultaneous Synonymous-to-Replacement rate estimation) infers and quantifies natural selection across regions within a coding gene. It jointly analyzes within-species polymorphism and between-species divergence data to estimate site-specific selection coefficients using a maximum likelihood clustering framework.
 
-**Version:** 2.0 | **Last Updated:** March 12th, 2025
+**Version:** 2.0 | **Last Updated:** March 2026
 **License:** Creative Commons CC BY-NC
 **Reference:** Zi-Ming Zhao, Ning Li, Zhang Zhang and Jeffrey P. Townsend. (2016) Regions within coding gene sequences experience diverse intensities of natural selection inferred from polymorphism and divergence. *G3: Genes, Genomes, Genetics.*
 
@@ -54,14 +54,15 @@ MASS-PRF automatically detects the number of available CPU cores at startup and 
 
 ### Scaling: when do you need more resources?
 
-| Gene length | Sequences | Typical RAM | Typical runtime |
-|-------------|-----------|-------------|-----------------|
-| very short (≤200 bp) | any | < 100 MB | seconds |
-| ~700 bp | ~12 (example data) | ~7–8 GB | 20–30 seconds |
-| ~600 bp | ~34 (example data) | ~5–6 GB | ~1.5–2 hours |
-| >1000 bp | >100 | 16+ GB | hours |
+| Gene length | Sequences | Peak RAM (observed) | Typical runtime (ARM64) |
+|-------------|-----------|---------------------|-------------------------|
+| very short (≤200 bp) | any | < 1 GB | seconds |
+| ~700 bp | ~12 | ~9 GB | ~30 min |
+| ~900 bp | ~21 | ~15 GB | ~17 min |
+| ~620 bp | ~34 | >15 GB | ~90 min |
+| >1000 bp | >50 | 32+ GB | hours |
 
-> Memory scales with gene length (the clustering step enumerates up to ~260,000 candidate models per site). The provided example datasets (Attacin-C, FZF1, PanI, YIR024C) have been verified on AWS EC2 t3.large (x86\_64, 8 GB RAM) and t4g.large (ARM64, 8 GB RAM), both running Ubuntu 24.04. See `examples/` for expected output files.
+> Memory scales primarily with the **number of sequences** (the clustering step builds models for every unique haplotype combination). The values above are from empirical testing of the four provided example datasets on AWS EC2 (ARM64, Ubuntu 24.04 LTS). See `examples/` for expected output files (`_v200_ARM64` suffix).
 
 ---
 
@@ -208,28 +209,29 @@ Open `output_Attacin-C.txt` in any text editor to review the full results, inclu
 ### Step 5: Try the other example datasets
 
 ```bash
-# Yeast FZF1 gene (~20–30 seconds)
+# Yeast FZF1 gene (~17 min, requires ~15 GB RAM)
 ./bin/massprf -p examples/FZF1_yeast_pol.fas -d examples/FZF1_yeast_div.fas > output_FZF1.txt
 
-# Atlantic cod PanI gene (~1.5–2 hours)
+# Atlantic cod PanI gene (~90 min, requires >15 GB RAM)
 ./bin/massprf -p examples/PanI_cod_pol.fas -d examples/PanI_cod_div.fas > output_PanI.txt
 
-# Yeast YIR024C gene (seconds)
-./bin/massprf -p examples/Pol_all_YIR024C.fas -d examples/Div_Spar_YIR024C.fas > output_YIR024C.txt
+# Yeast YIR024C gene (~45 seconds)
+# This gene has no synonymous sites (PS=DS=0), so divergence time must be provided with -t
+./bin/massprf -p examples/Pol_all_YIR024C.fas -d examples/Div_Spar_YIR024C.fas -t 5 > output_YIR024C.txt
 ```
 
-### Expected runtime
+### Expected runtime (v2.0, ARM64)
 
-| Dataset | x86\_64 (t3.large, 2 vCPUs) | ARM64 (t4g.large, 2 vCPUs) |
-|---------|------------------------------|------------------------------|
-| YIR024C | < 5 seconds | < 5 seconds |
-| Attacin-C | ~20–30 seconds | ~8 seconds |
-| FZF1 | ~20–30 seconds | ~13 seconds |
-| PanI | ~1.5–2 hours | ~6 seconds |
+| Dataset | Sequences | RAM required | Runtime (ARM64) |
+|---------|-----------|--------------|-----------------|
+| YIR024C | 19 | < 5 GB | ~45 seconds |
+| Attacin-C | 12 | ~9 GB | ~30 min |
+| FZF1 | 21 | ~15 GB | ~17 min |
+| PanI | 34 | >15 GB | ~90 min |
 
-Both tested on Ubuntu 24.04 LTS with 8 GB RAM. ARM64 (AWS Graviton) is substantially faster for large datasets. The installation procedure is identical on both architectures.
+Tested on AWS EC2 ARM64 (Ubuntu 24.04 LTS). Runtime depends on number of sequences and gene length. The installation procedure is identical on x86\_64 and ARM64.
 
-Expected output files for all four datasets are provided in `examples/` for reference (suffixed `_v131` for x86\_64 and `_v131_ARM64` for ARM64).
+Expected output files for all four datasets are provided in `examples/` (suffixed `_v200_ARM64` for v2.0 ARM64).
 
 ---
 
@@ -454,6 +456,30 @@ Raw sequences (FASTA)
 ---
 
 ## 9. Common Situations and Warnings
+
+### Using non-genic mode (`-ng 1`)
+
+Non-genic mode treats every nucleotide position as a replacement site, bypassing synonymous/nonsynonymous classification. This is intended for non-coding sequences (e.g., introns, UTRs) where the standard codon-based distinction does not apply.
+
+**Required flags when using `-ng 1`:**
+
+```bash
+./bin/massprf -p pol.fas -d div.fas -ng 1 -s 0 -t <divergence_time>
+```
+
+- `-s 0` — synonymous clustering must be disabled (there are no synonymous sites)
+- `-t <value>` — divergence time in million years must be provided, since it cannot be auto-estimated without synonymous sites
+
+**Example:**
+```bash
+./bin/massprf -p ncds_pol.fas -d ncds_div.fas -ng 1 -o 1 -s 0 -n 0 -t 5
+```
+
+### "Warning: There is not enough information from synonymous sites to estimate divergence time!"
+
+This warning appears when PS=0 and DS=0 (the gene has no synonymous polymorphic or divergent sites). The program cannot auto-estimate the divergence time `r` from silent sites.
+
+**What to do:** Provide the divergence time manually with `-t <value>` (in million years). For example, for *S. cerevisiae* vs *S. paradoxus*, use `-t 5`. Without `-t`, the program will crash after this warning.
 
 ### "Warning: PR is too low for clustering, skipping PR clustering."
 

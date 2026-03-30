@@ -1124,7 +1124,7 @@ int PRFCluster::RunML(vector<string> pol_seq, vector<string> div_seq) {
 	}
 	time_t time_start1;
 	time_t t2;
-	if(Sys_cluster==1 && !this->non_genic_mode && pr>1){
+	if((Sys_cluster==1 || this->non_genic_mode) && pr>1){
 		//Initialize for PR
 		vec_SelectedModels.clear();
 		vec_MS_rate.clear();
@@ -1230,7 +1230,7 @@ int PRFCluster::RunML(vector<string> pol_seq, vector<string> div_seq) {
 		vec_upper_rate_ds=vec_upper_rate;
 	}
 
-	if(Sys_cluster==1 && !this->non_genic_mode && dr>1){
+	if((Sys_cluster==1 || this->non_genic_mode) && dr>1){
 		//Initialize for DR
 		vec_SelectedModels.clear();
 		vec_MS_rate.clear();
