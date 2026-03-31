@@ -1,0 +1,209 @@
+parse parameter
+[GAP] policy=strict threshold=0.5
+
+MASS-PRF, Version: 2.0 [March 2026]
+Reference: Zi-Ming Zhao, Ning Li, Zhang Zhang and Jeffrey P. Townsend. (2016) Regions within coding gene sequences experience diverse intensities of natural selection inferred from polymorphism and divergence.
+  Maintained and updated by Yide Jin (2025-2026).
+
+Notice: End-of-file reached. Please ensure that your FASTA file conforms to the standard format.
+Standard FASTA format requires each entry to begin with a '>' followed by the taxa name and sequence lines. If your file includes an extra empty line at the end, this message can be safely ignored.
+Notice: End-of-file reached. Please ensure that your FASTA file conforms to the standard format.
+Standard FASTA format requires each entry to begin with a '>' followed by the taxa name and sequence lines. If your file includes an extra empty line at the end, this message can be safely ignored.
+
+Criterion used: BIC
+
+
+Polymorphism data:
+
+>S288C/CLIB215/CLIB324/I14/IL01/M22/PW5/T73/UC5/Y12/YJM269/YJM320/YJM326/YJM451/YJM653/YPS163/T7_updated/YJM280/YJM421/
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGCTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGCTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATAGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+ATGTTTATGGCAAGACAAGTGTTAAGAAATGGTTTT
+
+
+Divergence data:
+
+>Spar/
+ATGTTTTTGGCAAGACCACCATTAAGAAATGGGCTA
+
+
+
+Open and Read the lookup table for numeric integration:
+
+The number of species in the polymorphism data:19
+
+Extract LookupTable_gx1_n_gamma_integration_50_v9.dat
+
+Vector size after extraction: 201
+
+Extract LookupTable_gx1_derivative_n_gamma_50_v9.dat
+
+Vector size after extraction: 201
+
+Extract LookupTable_gx2_n_gamma_integration_50_v9.dat
+
+Vector size after extraction: 201
+
+Extract LookupTable_gx2_derivative_n_gamma_50_v9.dat
+
+Vector size after extraction: 201
+****** Start RunML
+Step-getPolSysRep:
+Finish getPolSysRep: 
+consensus seq: ***R**************************R*R***
+Polymorphism: ***R**************************R*R***
+Divergence:   ******R*********R*RRR***********-R*R
+
+The gene length: 36bp
+PS: 0
+DS: 0
+PR: 3
+DR: 7
+No Scaling requested 
+Scaling outputs (displayed for unscaled features too):
+Scaled size:36
+Polymorphism Synonymous: ************************************
+Polymorphism Replacement: ***R**************************R*R***
+Divergence Synonymous: ************************************
+Divergence Replacement: ******R*********R*RRR************R*R
+
+PS: 0
+DS: 0
+PR: 3
+DR: 7
+
+Number of Individuals in Polymorphism=19
+Before Clustering (Total Time elapsed: 0:0)
+****** Start Clustering Polymorphism Replacement
+The total models in ClusterSubSeq: 666
+The total models in ClusterSubSeq: 21
+The total models in ClusterSubSeq: 6
+End Clustering Polymorphism Replacement (Time elapsed: 0:0)
+End Clustering Polymorphism Replacement (Total Time elapsed: 0:0)
+****** Start Clustering Divergence Replacement
+The total models in ClusterSubSeq: 666
+The total models in ClusterSubSeq: 171
+The total models in ClusterSubSeq: 120
+The total models in ClusterSubSeq: 6
+The total models in ClusterSubSeq: 6
+End Clustering Divergence Replacement (Time elapsed: 0:0)
+End Clustering Divergence Replacement (Total Time elapsed: 0:0)
+****** Start r_stochastic
+Site	PolymorphismModelSize	DivergenceModelSize	AllUsedModels	ModelsWithSavedGammaValues	r_ma	r_ma_prob	CIr_lower	CIr_upper
+1	666	666	10186	10000	-0.722857	-0.827033	-2.27454	3.40684
+2	666	666	10245	10000	-0.728153	-0.837096	-2.27454	3.27296
+3	666	666	10200	10000	-0.703822	-0.847713	-2.29737	3.24792
+4	666	666	10136	10000	-0.688097	-0.896478	-2.44169	3.36606
+5	666	666	11638	10000	-0.510413	-1.05867	-2.23324	3.31412
+6	666	666	13141	10000	-0.31268	-0.261273	-2.20321	3.61012
+7	666	666	14295	10000	-0.156725	0.384519	-2.15512	3.79015
+8	666	666	16039	10000	-0.0226568	0.688774	-2.13517	3.86305
+9	666	666	17220	10000	0.119857	0.951498	-2.06195	3.90429
+10	666	666	18768	10000	0.220875	1.13915	-2.02208	3.93361
+11	666	666	19907	10000	0.349056	1.54234	-1.93958	3.96934
+12	666	666	21184	10000	0.507938	1.87485	-1.77032	4.05976
+13	666	666	21588	10000	0.629566	2.1228	-1.569	4.30992
+14	666	666	22738	10000	0.795183	2.61183	-1.36135	4.66828
+15	666	666	23193	10000	0.969558	3.03803	-1.25052	5.57801
+16	666	666	23505	10000	1.39055	3.95901	-1.18999	8.33648
+17	666	666	23588	10000	2.76885	6.70384	-1.083	13.97
+18	666	666	23324	10000	2.96746	6.95037	-1.05625	13.97
+19	666	666	23110	10000	4.31929	9.6387	-0.376083	18.5049
+20	666	666	22421	10000	4.46865	9.43223	-0.36712	18.5049
+21	666	666	22320	10000	3.82724	8.18761	-0.876272	17.1098
+22	666	120	29507	10000	1.38422	1.44898	-1.91588	7.71943
+23	666	120	80	20	1.04455	0.229481	-1.91416	6.36009
+24	666	120	78	23	-0.13878	-1.16684	-2.18796	5.00576
+25	666	120	41272	10000	-0.189145	-1.23179	-2.16981	3.36606
+26	666	120	43238	10000	-0.468111	-2.13605	-2.23257	2.83781
+27	666	120	43173	10000	-0.67225	-1.82422	-2.28336	2.60962
+28	666	120	40550	10000	-0.781146	-1.98226	-2.50835	2.6414
+29	666	120	36447	10000	-0.908588	-2.17679	-2.79023	2.6414
+30	666	120	31335	10000	-1.02909	-2.26558	-3.04979	2.25806
+31	21	120	26644	10000	-2.55842	-4.22108	-4.85423	-0.466103
+32	21	120	20525	10000	-2.12412	-2.7649	-4.85423	0.0988477
+33	21	120	15273	10000	-1.96944	-2.49957	-4.38457	0.635327
+34	21	120	15385	10000	-0.980026	-0.21093	-3.17028	1.09569
+35	21	120	18819	10000	-0.82548	0.571106	-3.17028	1.09569
+36	21	120	17673	10000	-0.811808	0.4866	-3.04979	1.09569
+End r_stochastic (Time elapsed: 0:52)
+End r_stochastic (Total Time elapsed: 0:52)
+End CIr (Total Time elapsed: 0:52)
+
+**************
+Warning:
+For estimating Neutrality Index (NI), model-averaging and synonymous clustering are required.
+Please set '-s 1 -m 0 -NI 1' and do not use '-NG 1' (non-genic mode).
+**************
+Before Output (Total Time elapsed: 0:52)
+
+//Results based on model selection: 
+
+Clusters from Polymorphism Synonymous:
+Note: PS=1 or 0. There is not enough information for clustering!
+
+
+Clusters from Divergence Synonymous:
+Note: DS=1 or 0. There is not enough information for clustering!
+
+Warning in site specific divergence time calculation; -ssd. There is no silent clustering for PS or DS.
+
+Clusters from Polymorphism Replacement:
+1 amino acid ~ 12 amino acid	cs= 2	ce= 10
+InL0= -10.3261	InL= -6.10864	AIC0= 22.6522	AIC= 16.2173	AICc0= 22.6522	AICc= 16.5809	BIC0= 22.6522	BIC= 19.3843
+	P0pr= 0.3	Pcpr= 0
+
+11 amino acid ~ 12 amino acid	cs= 12	ce= 12
+InL0= -3.81909	InL= -1.90954	AIC0= 9.63817	AIC= 7.81909	AICc0= 9.63817	AICc= 11.8191	BIC0= 9.63817	BIC= 7.4026
+	P0pr= 0.666667	Pcpr= 0
+
+
+Clusters from Divergence Replacement:
+1 amino acid ~ 12 amino acid	cs= 7	ce= 7
+InL0= -17.7337	InL= -12.188	AIC0= 37.4675	AIC= 28.376	AICc0= 37.4675	AICc= 28.7396	BIC0= 37.4675	BIC= 31.543
+P0dr= 0.121212	Pcdr= 1
+
+8 amino acid ~ 12 amino acid	cs= 12	ce= 12
+InL0= -5.89012	InL= -1.90954	AIC0= 13.7802	AIC= 7.81909	AICc0= 13.7802	AICc= 8.81909	BIC0= 13.7802	BIC= 9.23519
+P0dr= 0	Pcdr= 0.666667
+
+
+//Results based on model averaging of gamma using different models: 
+Position	      MS_PolSys	     MA_PolSys	     MS_PolRep	     MA_PolRep	     MS_DivSys	     MA_DivSys	     MS_DivRep	     MA_DivRep      	DivergentTime	Gamma          	Lower_CI_Gamma	Upper_CI_Gamma 	PolymorphismMutationStatus	DivergenceMutationStatus
+1              	0              	0              	0.3            	0.141955       	0              	0              	0.121212       	0.156487       	5              	-0.718277      	-2.28215       	3.30924        	*	*              
+2              	0              	0              	0.1            	0.115754       	0              	0              	0.121212       	0.155351       	5              	-0.50373       	-2.29271       	3.4301         	R	*              
+3              	0              	0              	0              	0.061983       	0              	0              	0.121212       	0.15775        	5              	-0.0198413     	-2.11741       	3.8525         	*	R              
+4              	0              	0              	0              	0.0405054      	0              	0              	0.121212       	0.154072       	5              	0.359289       	-1.91066       	3.98757        	*	*              
+5              	0              	0              	0              	0.031016       	0              	0              	0.121212       	0.170425       	5              	0.798102       	-1.39363       	4.85207        	*	*              
+6              	0              	0              	0              	0.028083       	0              	0              	0.121212       	0.293869       	5              	2.37562        	-1.10975       	12.0922        	*	R              
+7              	0              	0              	0              	0.0303151      	0              	0              	1              	0.461002       	5              	4.20506        	-0.539825      	18.0399        	*	R              
+8              	0              	0              	0              	0.0387386      	0              	0              	0              	0.0886775      	5              	0.763331       	-2.006         	6.36176        	*	*              
+9              	0              	0              	0              	0.0580939      	0              	0              	0              	0.0376991      	5              	-0.443169      	-2.22858       	2.93783        	*	*              
+10             	0              	0              	0              	0.106088       	0              	0              	0              	0.0422108      	5              	-0.906275      	-2.78279       	2.51362        	*	*              
+11             	0              	0              	0.666667       	0.489085       	0              	0              	0              	0.116518       	5              	-2.21733       	-4.69767       	0.0893571      	R	*              
+12             	0              	0              	0              	0.177582       	0              	0              	0.666667       	0.381561       	5              	-0.872438      	-3.13012       	1.09569        	*	R              
+
+Abbreviation: MS=Model Selection; MA=Model Averaging; CI=Confidence Interval; ps=Polymorphism Synonymous; pr=Polymorphism Replacement; ds=Divergence Synonymous; dr=Divergence Replacement; Gamma=N*s (Gamma: scaled selection coefficient (selection intensity); N: haploid effective population size; s: selection coefficient); NI=Neutrality Index (NI=(pr/dr)/(ps/ds), >1 Negative selection, <1 Positive selection); INF=Infinite; N-INF=Negative Infinite;
+NULL (Not enough information for this site or both pr=0 and dr=0); NA - gamma value is not available from our calculation.
+
+#End of clustering
+
+End RunML (Total Time elapsed: 0:52)
+
+Mission accomplished. (Time elapsed: 00:52
