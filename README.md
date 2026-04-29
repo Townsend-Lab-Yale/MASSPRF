@@ -491,6 +491,8 @@ This means the dataset has fewer than 2 nonsynonymous polymorphic sites (PR < 2)
 
 Same situation as above, but for divergent replacement sites. The program continues.
 
+When either PR or DR is too low, MASS-PRF still performs PS and DS clustering and still calculates and outputs divergence time (estimated from synonymous sites). The full results table — including the `DivergentTime` column — will be present; only the `Gamma` and confidence interval columns will show `NULL` for sites where selection could not be estimated.
+
 ### "Error clustering (PS is too low!)" or "Error clustering (DS is too low!)"
 
 These errors indicate PS or DS < 2. They occur inside the clustering engine when the clustering was already attempted. Increasing your dataset size or using a gene with more variation is the remedy.

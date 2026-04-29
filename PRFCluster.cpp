@@ -517,7 +517,9 @@ int PRFCluster::output(long N){
 	{
 		for (long i=0;i<N;i++)
 		{
-			divergent_time[i] = divergent_time_sums[i]/divergent_time_weights[i];//model averaged divergence time for site i
+			if (divergent_time_weights[i] > 0)
+				divergent_time[i] = divergent_time_sums[i]/divergent_time_weights[i];//model averaged divergence time for site i
+			// else: keep the global value from DivergentTime() when DR/PR is too low and r_stochastic was skipped
 		}
 	}
 	else{
