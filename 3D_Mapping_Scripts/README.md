@@ -166,7 +166,8 @@ batchMASSPRF_Chimera(
   logT       = 2,          # FALSE = linear scale; 2 or 10 = log-scaled color ramp
   verbose    = FALSE,      # print progress messages
   minGamma   = -4,         # gamma below this is clamped to the lowest (blue) bin
-  maxGamma   = 50          # gamma above this is clamped to the highest (red) bin
+  maxGamma   = 50,         # gamma above this is clamped to the highest (red) bin
+  ignoreNA   = FALSE       # TRUE: skip NA-gamma sites (show ehColor); FALSE: error on NA
 )
 ```
 
@@ -180,6 +181,9 @@ batchMASSPRF_Chimera(
   - `"strict"` — all 3 rows must be significant
 - **`onlySig`**: When `TRUE`, non-significant residues are shown only in `ehColor`.
 - **`minGamma` / `maxGamma`**: Fixing these ensures colors mean the same thing across different proteins and runs.
+- **`ignoreNA`**: Controls how sites with missing gamma values are handled.
+  - `FALSE` (default) — follows the original strict execution path; an error will be raised if any site has a missing gamma value. This preserves backward compatibility and helps catch data integrity issues early.
+  - `TRUE` — sites with NA gamma values are skipped during color assignment and displayed in the default "no data" color (`ehColor`, gray by default). No error is raised. Use this when some sites are expected to have no gamma estimate (e.g. when PR or DR is too low for a gene).
 
 ---
 
